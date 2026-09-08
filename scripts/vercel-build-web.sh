@@ -22,7 +22,7 @@ fi
 # monorepo import). Copy the static web app into that folder so output stays
 # inside the configured project root.
 if [[ "${1:-}" == "--copy-to-sync-server" ]]; then
-  dest="$ROOT/packages/super-sync-server/.vercel-web"
+  dest="$ROOT/packages/super-sync-server/web-dist"
   rm -rf "$dest"
   cp -a dist/browser "$dest"
   echo "copied dist/browser -> $dest"

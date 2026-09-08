@@ -5,6 +5,7 @@
   "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
+    "vercel-build": "bash ../../scripts/vercel-build-web.sh --copy-to-sync-server",
     "start": "node dist/src/index.js",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "pretest": "prisma generate",

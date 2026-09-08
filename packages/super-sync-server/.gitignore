@@ -1,6 +1,7 @@
 node_modules
 dist
 data
+web-dist
 .vercel-web
 ./.env
 .env
