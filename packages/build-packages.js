@@ -81,6 +81,17 @@ async function getPlugins() {
     skipCopy: true,
   });
 
+  // Bundled plugin assets already live in src/assets/bundled-plugins.
+  // Rebuilding plugin-dev on Vercel needs nested Vite/Solid deps (for example
+  // vite-plugin-solid) that are not in the root lockfile.
+  if (process.env.VERCEL || process.env.SKIP_PLUGIN_DEV_BUILD === '1') {
+    log(
+      'Skipping plugin-dev rebuilds (using committed bundled-plugins assets)',
+      colors.yellow,
+    );
+    return plugins;
+  }
+
   for (const entry of entries) {
     if (entry.isDirectory()) {
       const pluginPath = path.join(pluginDevDir, entry.name);
