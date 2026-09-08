@@ -5,6 +5,7 @@
   "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
+    "vercel-build": "bash ../../scripts/vercel-build-web.sh --copy-to-sync-server",
     "start": "node dist/src/index.js",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "pretest": "prisma generate",
@@ -53,6 +54,9 @@
     "nodemailer": "^9.0.1",
     "uuidv7": "^1.1.0",
     "zod": "^4.4.3"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.3",
