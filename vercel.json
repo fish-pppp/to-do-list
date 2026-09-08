@@ -3,7 +3,7 @@
   "framework": null,
   "buildCommand": "npm run buildFrontend:prodWeb",
   "outputDirectory": "dist/browser",
-  "installCommand": "HUSKY=0 npm ci",
+  "installCommand": "HUSKY=0 NPM_CONFIG_PRODUCTION=false npm ci --include=dev",
   "rewrites": [
     {
       "source": "/(.*)",
