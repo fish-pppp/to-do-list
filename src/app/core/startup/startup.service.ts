@@ -43,6 +43,11 @@ const w = window as Window & { productivityTips?: string[][]; randomIndex?: numb
 /** Delay before running deferred initialization tasks (plugins, storage checks, etc.) */
 const DEFERRED_INIT_DELAY_MS = 1000;
 
+const TAB_CHANNEL_NAME = 'superProductivityTab';
+const TAB_YIELD_KEY = 'sp-tab-yielded';
+const TAB_PING_MS = 50;
+const TAB_TAKEOVER_WAIT_MS = 400;
+
 /**
  * Cap on how long the persisted theme is allowed to block startup. Built-ins
  * finish in <1 ms (no IDB read), normal user-theme reads land in 15-120 ms.
@@ -115,7 +120,6 @@ export class StartupService {
     if (!this._platformService.isNative && !IS_ELECTRON) {
       const isSingle = await this._checkIsSingleInstance();
       if (!isSingle) {
-        this._showMultiInstanceBlocker();
         return;
       }
     }
@@ -298,11 +302,32 @@ export class StartupService {
   }
 
   private async _checkIsSingleInstance(): Promise<boolean> {
-    const channel = new BroadcastChannel('superProductivityTab');
+    const channel = new BroadcastChannel(TAB_CHANNEL_NAME);
+
+    // This tab previously yielded to another one. Stay parked until the user
+    // explicitly continues here, so a refresh does not steal the app back.
+    if (sessionStorage.getItem(TAB_YIELD_KEY) === '1') {
+      this._showMultiInstanceBlocker(channel);
+      return false;
+    }
+
+    const otherTabIsOpen = await this._pingForExistingTab(channel);
+    if (otherTabIsOpen) {
+      const yielded = await this._requestTabTakeover(channel);
+      if (!yielded) {
+        this._showMultiInstanceBlocker(channel);
+        return false;
+      }
+    }
+
+    this._listenForTabChallenges(channel);
+    return true;
+  }
+
+  private async _pingForExistingTab(channel: BroadcastChannel): Promise<boolean> {
     let isAnotherInstanceActive = false;
     let resolved = false;
 
-    // 1. Listen for other instances saying "I'm here!"
     const checkListener = (msg: MessageEvent): void => {
       if (msg.data === 'alreadyOpenElsewhere') {
         isAnotherInstanceActive = true;
@@ -310,12 +335,8 @@ export class StartupService {
       }
     };
     channel.addEventListener('message', checkListener);
-
-    // 2. Ask "Is anyone here?"
     channel.postMessage('newTabOpened');
 
-    // 3. Wait for response with early exit - reduced from 150ms to 50ms
-    // BroadcastChannel is synchronous within the same origin, so 50ms is sufficient
     await new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
         if (resolved) {
@@ -326,38 +347,70 @@ export class StartupService {
       setTimeout(() => {
         clearInterval(checkInterval);
         resolve();
-      }, 50);
+      }, TAB_PING_MS);
     });
 
     channel.removeEventListener('message', checkListener);
+    return isAnotherInstanceActive;
+  }
 
-    if (isAnotherInstanceActive) {
-      return false;
-    }
+  private async _requestTabTakeover(channel: BroadcastChannel): Promise<boolean> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value: boolean): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        channel.removeEventListener('message', onMsg);
+        window.clearTimeout(timer);
+        resolve(value);
+      };
+      const onMsg = (msg: MessageEvent): void => {
+        if (msg.data === 'yielded') {
+          finish(true);
+        }
+      };
+      channel.addEventListener('message', onMsg);
+      channel.postMessage('requestTakeover');
+      const timer = window.setTimeout(() => finish(false), TAB_TAKEOVER_WAIT_MS);
+    });
+  }
 
-    // 4. If we are the only one, start listening for new tabs to warn them
-    channel.addEventListener('message', (msg) => {
+  private _listenForTabChallenges(channel: BroadcastChannel): void {
+    channel.addEventListener('message', (msg: MessageEvent) => {
       if (msg.data === 'newTabOpened') {
         channel.postMessage('alreadyOpenElsewhere');
       }
+      if (msg.data === 'requestTakeover') {
+        sessionStorage.setItem(TAB_YIELD_KEY, '1');
+        channel.postMessage('yielded');
+        channel.close();
+        window.location.reload();
+      }
     });
-
-    return true;
   }
 
-  private _showMultiInstanceBlocker(): void {
-    const msg =
-      'Super Productivity is already running in another tab. Please close this tab or the other one.';
+  private _showMultiInstanceBlocker(channel: BroadcastChannel): void {
     const style =
       'display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; font-family: sans-serif; padding: 2rem;';
+    const btnStyle =
+      'margin-top: 1.25rem; padding: 0.7rem 1.25rem; font-size: 1rem; cursor: pointer; background: #0b77d2; color: #fff; border: 0; border-radius: 8px;';
     document.body.innerHTML = `
       <div style="${style}">
         <div>
-          <h1>App is already open</h1>
-          <p>${msg}</p>
+          <h1>应用已在其他标签页打开</h1>
+          <p>Super Productivity 已在另一个标签页运行。可以关闭这个标签，或在此继续使用。</p>
+          <p style="color:#555">App is already open in another tab.</p>
+          <button id="sp-use-this-tab" type="button" style="${btnStyle}">在此标签继续使用</button>
         </div>
       </div>
     `;
+    document.getElementById('sp-use-this-tab')?.addEventListener('click', () => {
+      sessionStorage.removeItem(TAB_YIELD_KEY);
+      channel.postMessage('requestTakeover');
+      window.setTimeout(() => window.location.reload(), 150);
+    });
   }
 
   private _isTourLikelyToBeShown(): boolean {
