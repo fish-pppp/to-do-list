@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "bash ../../scripts/vercel-install.sh",
-  "buildCommand": "bash ../../scripts/vercel-build-web.sh --copy-to-sync-server",
+  "installCommand": "bash ./vercel-web-install.sh",
+  "buildCommand": "bash ./vercel-web-build.sh",
   "outputDirectory": "web-dist",
   "rewrites": [
     {

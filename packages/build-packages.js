@@ -213,7 +213,7 @@ async function buildPlugin(plugin) {
         }
         if (needsInstall) {
           log(`  Installing dependencies...`, colors.yellow);
-          await execAsync(`cd ${pluginPath} && npm install`);
+          await execAsync(`cd ${pluginPath} && npm install --include=dev`);
         }
       } catch {
         // No package.json, skip install

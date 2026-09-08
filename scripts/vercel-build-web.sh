@@ -5,7 +5,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 export NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=6144"
-export NODE_ENV=production
+# Keep NODE_ENV=development so plugin `npm install` during prebuild still
+# pulls vite-plugin-solid (it lives in plugin-dev devDependencies). Angular
+# minification comes from --configuration productionWeb, not NODE_ENV.
+export NODE_ENV=development
 
 echo "vercel-build-web: node $(node -v) root=$ROOT"
 
