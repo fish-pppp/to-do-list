@@ -36,18 +36,18 @@ function mockReq(method, url, { headers = {}, body = '' } = {}) {
 }
 
 function loadHandler(env) {
-  delete require.cache[require.resolve('./api/backup.js')];
+  delete require.cache[require.resolve('./server/backup-handler.js')];
   const previous = {
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     SYNC_KEY: process.env.SYNC_KEY,
   };
   process.env.BLOB_READ_WRITE_TOKEN = env.BLOB_READ_WRITE_TOKEN;
   process.env.SYNC_KEY = env.SYNC_KEY;
-  const handler = require('./api/backup.js');
+  const handler = require('./server/backup-handler.js');
   return {
     handler,
     restore() {
-      delete require.cache[require.resolve('./api/backup.js')];
+      delete require.cache[require.resolve('./server/backup-handler.js')];
       if (previous.BLOB_READ_WRITE_TOKEN === undefined) {
         delete process.env.BLOB_READ_WRITE_TOKEN;
       } else {

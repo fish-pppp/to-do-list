@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WEB_DIST="$ROOT/web-dist"
-HANDLER="$ROOT/api/backup.js"
+HANDLER="$ROOT/server/backup-handler.js"
 OUT="$ROOT/.vercel/output"
 FUNC="$OUT/functions/api/backup.func"
 
@@ -24,7 +24,7 @@ cp "$HANDLER" "$FUNC/index.js"
 
 cat > "$FUNC/.vc-config.json" <<'EOF'
 {
-  "runtime": "nodejs22.x",
+  "runtime": "nodejs20.x",
   "handler": "index.js",
   "launcherType": "Nodejs",
   "shouldAddHelpers": true,

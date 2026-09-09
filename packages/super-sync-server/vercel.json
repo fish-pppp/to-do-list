@@ -2,5 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo 'Using prebuilt Super Productivity web-dist'",
-  "buildCommand": "bash scripts/emit-vercel-output.sh"
+  "buildCommand": "echo 'Using committed .vercel/output'"
 }
