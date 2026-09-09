@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "routes": [
+    {
+      "src": "/index.html",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
+      "continue": true
+    },
+    {
+      "src": "/ngsw.json",
+      "headers": { "cache-control": "no-cache" },
+      "continue": true
+    },
+    {
+      "src": "/manifest.json",
+      "headers": { "cache-control": "no-cache" },
+      "continue": true
+    },
+    { "src": "/api/backup", "dest": "/api/backup" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}

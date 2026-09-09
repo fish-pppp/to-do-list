@@ -1,0 +1,2 @@
+import{j as r,u as l}from"./chunk-NYZU2AOC.js";import{e as n}from"./chunk-PE6UJDCZ.js";var i,f,c=n(()=>{"use strict";l();i=/[^\x00-\x7f]/,f=(t,e,o)=>{if(typeof e=="number"&&!i.test(t)&&e!==t.length)throw new r(`${o}: remote stored ${e} bytes but ${t.length} were uploaded \u2014 the remote copy is truncated. Sync will fail until a full copy is written.`)}});export{f as a,c as b};
+//# sourceMappingURL=chunk-JXCT6IOH.js.map

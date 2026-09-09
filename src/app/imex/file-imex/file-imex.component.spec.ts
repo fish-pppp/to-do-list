@@ -20,6 +20,7 @@ import { DialogImportFromUrlComponent } from '../dialog-import-from-url/dialog-i
 import { createAppDataCompleteMock } from '../../util/app-data-mock';
 import { ImportEncryptionHandlerService } from '../sync/import-encryption-handler.service';
 import { PluginService } from '../../plugins/plugin.service';
+import { WebCloudBackupService } from '../web-cloud-backup/web-cloud-backup.service';
 
 describe('FileImexComponent', () => {
   let component: FileImexComponent;
@@ -65,6 +66,15 @@ describe('FileImexComponent', () => {
     ]);
     pluginServiceSpy.isInitialized.and.returnValue(true);
     pluginServiceSpy.activatePlugin.and.returnValue(Promise.resolve(null));
+    const webCloudBackupSpy = jasmine.createSpyObj('WebCloudBackupService', [
+      'getSyncKey',
+      'setSyncKey',
+      'uploadIfLocalHasData',
+      'restoreFromCloud',
+    ]);
+    webCloudBackupSpy.getSyncKey.and.returnValue('');
+    webCloudBackupSpy.uploadIfLocalHasData.and.returnValue(Promise.resolve(true));
+    webCloudBackupSpy.restoreFromCloud.and.returnValue(Promise.resolve(true));
     importEncryptionHandlerSpy.handleImportEncryptionIfNeeded.and.returnValue(
       Promise.resolve(null),
     );
@@ -92,6 +102,7 @@ describe('FileImexComponent', () => {
         { provide: MatDialog, useValue: matDialogSpy },
         { provide: ImportEncryptionHandlerService, useValue: importEncryptionHandlerSpy },
         { provide: PluginService, useValue: pluginServiceSpy },
+        { provide: WebCloudBackupService, useValue: webCloudBackupSpy },
       ],
     }).compileComponents();
 
@@ -421,6 +432,32 @@ describe('FileImexComponent', () => {
       await component.privacyAppDataDownload();
 
       expect(mockBackupService.loadCompleteBackup).toHaveBeenCalled();
+    });
+  });
+
+  describe('cloud backup', () => {
+    it('saves the sync key and uploads', async () => {
+      const webCloudBackup = TestBed.inject(
+        WebCloudBackupService,
+      ) as jasmine.SpyObj<WebCloudBackupService>;
+      component.cloudSyncKey = ' my-key ';
+
+      await component.uploadToCloud();
+
+      expect(webCloudBackup.setSyncKey).toHaveBeenCalledWith(' my-key ');
+      expect(webCloudBackup.uploadIfLocalHasData).toHaveBeenCalledWith(true);
+    });
+
+    it('saves the sync key and restores', async () => {
+      const webCloudBackup = TestBed.inject(
+        WebCloudBackupService,
+      ) as jasmine.SpyObj<WebCloudBackupService>;
+      component.cloudSyncKey = 'my-key';
+
+      await component.restoreFromCloud();
+
+      expect(webCloudBackup.setSyncKey).toHaveBeenCalledWith('my-key');
+      expect(webCloudBackup.restoreFromCloud).toHaveBeenCalledWith(false);
     });
   });
 });

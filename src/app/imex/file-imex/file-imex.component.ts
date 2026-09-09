@@ -45,6 +45,8 @@ import { DialogArchiveCompressionComponent } from '../../features/archive/dialog
 import { DataValidationFailedError } from '../../op-log/core/errors/sync-errors';
 import { alertDialog } from '../../util/native-dialogs';
 import { PluginService } from '../../plugins/plugin.service';
+import { WebCloudBackupService } from '../web-cloud-backup/web-cloud-backup.service';
+import { FormsModule } from '@angular/forms';
 
 const TODOIST_IMPORT_PLUGIN_ID = 'todoist-import';
 
@@ -53,7 +55,7 @@ const TODOIST_IMPORT_PLUGIN_ID = 'todoist-import';
   templateUrl: './file-imex.component.html',
   styleUrls: ['./file-imex.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIcon, MatButton, MatTooltip, TranslatePipe],
+  imports: [MatIcon, MatButton, MatTooltip, TranslatePipe, FormsModule],
 })
 export class FileImexComponent implements OnInit {
   private _snackService = inject(SnackService);
@@ -65,11 +67,16 @@ export class FileImexComponent implements OnInit {
   private _http = inject(HttpClient);
   private _importEncryptionHandler = inject(ImportEncryptionHandlerService);
   private _pluginService = inject(PluginService);
+  private _webCloudBackup = inject(WebCloudBackupService);
 
   readonly fileInputRef = viewChild<ElementRef>('fileInput');
   T: typeof T = T;
+  cloudSyncKey = '';
+  readonly showCloudBackup = this._webCloudBackup.isAvailable;
 
   ngOnInit(): void {
+    this.cloudSyncKey = this._webCloudBackup.getSyncKey();
+
     this._activatedRoute.queryParams.pipe(first()).subscribe((params) => {
       const importUrlParam = params['importFromUrl'];
       if (importUrlParam) {
@@ -306,6 +313,21 @@ export class FileImexComponent implements OnInit {
       width: '500px',
       maxWidth: '90vw',
     });
+  }
+
+  saveCloudSyncKey(): void {
+    this._webCloudBackup.setSyncKey(this.cloudSyncKey);
+    this._snackService.open({ type: 'SUCCESS', msg: T.FILE_IMEX.CLOUD_KEY_SAVED });
+  }
+
+  async uploadToCloud(): Promise<void> {
+    this.saveCloudSyncKey();
+    await this._webCloudBackup.uploadIfLocalHasData(true);
+  }
+
+  async restoreFromCloud(): Promise<void> {
+    this.saveCloudSyncKey();
+    await this._webCloudBackup.restoreFromCloud(false);
   }
 
   async openTodoistImport(): Promise<void> {

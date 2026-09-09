@@ -15,3 +15,24 @@ button {
 section {
   margin-top: var(--s2);
 }
+
+.cloud-sync {
+  margin-bottom: var(--s2);
+
+  h3 {
+    margin: 0 0 var(--s);
+  }
+
+  p,
+  label {
+    display: block;
+    margin-bottom: var(--s);
+  }
+
+  input {
+    display: block;
+    width: min(100%, 28rem);
+    margin-bottom: var(--s);
+    padding: 0.4rem 0.6rem;
+  }
+}

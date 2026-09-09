@@ -1,3 +1,46 @@
+@if (showCloudBackup) {
+<section class="cloud-sync">
+  <h3>{{ T.FILE_IMEX.CLOUD_TITLE | translate }}</h3>
+  <p>{{ T.FILE_IMEX.CLOUD_HINT | translate }}</p>
+  <label for="cloud-sync-key">{{ T.FILE_IMEX.CLOUD_KEY_LABEL | translate }}</label>
+  <input
+    id="cloud-sync-key"
+    type="password"
+    autocomplete="off"
+    [(ngModel)]="cloudSyncKey"
+  />
+  <div>
+    <button
+      (click)="saveCloudSyncKey()"
+      color="primary"
+      mat-stroked-button
+      type="button"
+    >
+      <mat-icon>vpn_key</mat-icon>
+      {{ T.FILE_IMEX.CLOUD_SAVE_KEY | translate }}
+    </button>
+    <button
+      (click)="uploadToCloud()"
+      color="primary"
+      mat-stroked-button
+      type="button"
+    >
+      <mat-icon>cloud_upload</mat-icon>
+      {{ T.FILE_IMEX.CLOUD_SAVE | translate }}
+    </button>
+    <button
+      (click)="restoreFromCloud()"
+      color="primary"
+      mat-stroked-button
+      type="button"
+    >
+      <mat-icon>cloud_download</mat-icon>
+      {{ T.FILE_IMEX.CLOUD_RESTORE | translate }}
+    </button>
+  </div>
+</section>
+}
+
 <button
   (click)="downloadBackup()"
   color="primary"
