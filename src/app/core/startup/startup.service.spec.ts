@@ -23,6 +23,7 @@ import { selectSyncConfig } from '../../features/config/store/global-config.redu
 import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
 import { RatePromptService } from '../../features/dialog-please-rate/rate-prompt.service';
 import { JiraElectronBridgeService } from '../../features/issue/providers/jira/jira-electron-bridge.service';
+import { WebCloudBackupService } from '../../imex/web-cloud-backup/web-cloud-backup.service';
 
 describe('StartupService', () => {
   let service: StartupService;
@@ -122,10 +123,13 @@ describe('StartupService', () => {
       'applyActiveTheme',
     ]);
     customThemeServiceSpy.applyActiveTheme.and.resolveTo(undefined);
+    const webCloudBackupSpy = jasmine.createSpyObj('WebCloudBackupService', ['init']);
+    webCloudBackupSpy.init.and.returnValue(Promise.resolve());
 
     TestBed.configureTestingModule({
       providers: [
         StartupService,
+        { provide: WebCloudBackupService, useValue: webCloudBackupSpy },
         { provide: ImexViewService, useValue: imexViewServiceSpy },
         { provide: TranslateService, useValue: translateServiceSpy },
         { provide: LocalBackupService, useValue: localBackupServiceSpy },

@@ -37,6 +37,7 @@ import { LocalRestApiHandlerService } from '../electron/local-rest-api-handler.s
 import { CustomThemeService } from '../theme/custom-theme.service';
 import { UpdateCheckService } from '../update-check/update-check.service';
 import { JiraElectronBridgeService } from '../../features/issue/providers/jira/jira-electron-bridge.service';
+import { WebCloudBackupService } from '../../imex/web-cloud-backup/web-cloud-backup.service';
 
 const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
 
@@ -82,6 +83,7 @@ export class StartupService {
   private _injector = inject(Injector);
   private _customThemeService = inject(CustomThemeService);
   private _jiraElectronBridge = inject(JiraElectronBridgeService);
+  private _webCloudBackup = inject(WebCloudBackupService);
 
   constructor() {
     // Claim the privileged Jira IPC capability here, in trusted startup code,
@@ -126,6 +128,11 @@ export class StartupService {
 
     this._initBackups();
     this._requestPersistence();
+    this._dataInitStateService.isAllDataLoadedInitially$
+      .pipe(take(1))
+      .subscribe(() => {
+        void this._webCloudBackup.init();
+      });
 
     // Apply the persisted custom theme before the deferred init / Electron
     // ready notification, so the page doesn't briefly flash the default
