@@ -34,6 +34,7 @@ export class WebCloudBackupService {
   private _started = false;
   private _watching = false;
   private _configured = false;
+  private _busy = false;
 
   get isAvailable(): boolean {
     return IS_WEB_BROWSER;
@@ -78,6 +79,9 @@ export class WebCloudBackupService {
   }
 
   async uploadIfLocalHasData(showSnack: boolean): Promise<boolean> {
+    if (this._busy) {
+      return false;
+    }
     if (!this.getSyncKey()) {
       if (showSnack) {
         this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_NEED_KEY });
@@ -161,10 +165,16 @@ export class WebCloudBackupService {
         }
       }
 
-      await this._backupService.importCompleteBackup(backup, true, true, true);
+      this._busy = true;
+      try {
+        await this._backupService.importCompleteBackup(backup, true, true, true);
+      } finally {
+        this._busy = false;
+      }
       this._snackService.open({ type: 'SUCCESS', msg: T.FILE_IMEX.CLOUD_RESTORED });
       return true;
     } catch (error) {
+      this._busy = false;
       Log.err('WebCloudBackup restore failed', error);
       this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_RESTORE_FAILED });
       return false;
