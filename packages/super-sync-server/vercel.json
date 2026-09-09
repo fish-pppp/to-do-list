@@ -4,9 +4,14 @@
   "installCommand": "echo 'Using prebuilt Super Productivity web-dist'",
   "buildCommand": "echo 'Using prebuilt Super Productivity web-dist'",
   "outputDirectory": "web-dist",
+  "functions": {
+    "api/backup.js": {
+      "excludeFiles": "{web-dist/**,**/*.test.js}"
+    }
+  },
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],

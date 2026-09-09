@@ -36,18 +36,18 @@ function mockReq(method, url, { headers = {}, body = '' } = {}) {
 }
 
 function loadHandler(env) {
-  delete require.cache[require.resolve('./backup.js')];
+  delete require.cache[require.resolve('./api/backup.js')];
   const previous = {
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     SYNC_KEY: process.env.SYNC_KEY,
   };
   process.env.BLOB_READ_WRITE_TOKEN = env.BLOB_READ_WRITE_TOKEN;
   process.env.SYNC_KEY = env.SYNC_KEY;
-  const handler = require('./backup.js');
+  const handler = require('./api/backup.js');
   return {
     handler,
     restore() {
-      delete require.cache[require.resolve('./backup.js')];
+      delete require.cache[require.resolve('./api/backup.js')];
       if (previous.BLOB_READ_WRITE_TOKEN === undefined) {
         delete process.env.BLOB_READ_WRITE_TOKEN;
       } else {
@@ -131,7 +131,12 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
   const backup = JSON.stringify({ timestamp: 1, data: { task: { ids: ['a'] } } });
 
   global.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method || 'GET', headers: init.headers, body: init.body });
+    calls.push({
+      url: String(url),
+      method: init.method || 'GET',
+      headers: init.headers,
+      body: init.body,
+    });
     const href = String(url);
     if (href.includes('pathname=sp-tasks-backup.json') && (init.method || 'GET') === 'PUT') {
       return {
