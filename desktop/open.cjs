@@ -185,8 +185,8 @@ const launchDesktop = ({
     chosen = browserCommand;
     kind = 'browser';
   } else {
-    chosen = electronCommand || browserCommand;
-    kind = electronCommand ? 'electron' : 'browser';
+    chosen = browserCommand || electronCommand;
+    kind = browserCommand ? 'browser' : 'electron';
   }
 
   if (!chosen) {

@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 
 if command -v node >/dev/null 2>&1; then
-  exec node ./open.cjs
+  exec node ./open.cjs --browser
 fi
 
 if [ -z "${SP_WEB_URL:-}" ]; then

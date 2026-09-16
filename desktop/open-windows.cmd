@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 where node >nul 2>&1
 if %errorlevel%==0 (
-  node "%~dp0open.cjs"
+  node "%~dp0open.cjs" --browser
   exit /b %errorlevel%
 )
 

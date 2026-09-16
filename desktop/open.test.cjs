@@ -72,6 +72,25 @@ test('launchDesktop --print-url prints the configured URL and does not spawn', (
   }
 });
 
+test('launchDesktop without flags prefers Chrome --app= even if Electron exists', () => {
+  const { dir, chrome } = makeChromeDir();
+  try {
+    const result = launchDesktop({
+      argv: ['--print-command'],
+      env: { SP_WEB_URL: 'https://tasks.example/', PATH: dir },
+      platform: 'linux',
+      spawnFn: () => {
+        throw new Error('should not spawn');
+      },
+      log: () => {},
+    });
+    assert.equal(result.kind, 'browser');
+    assert.equal(result.command && result.command.exe, chrome);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('launchDesktop --browser --print-command uses Chrome --app= on Today', () => {
   const { dir, chrome } = makeChromeDir();
   const printed = [];
