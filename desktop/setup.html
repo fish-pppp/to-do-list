@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>今日待办</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f4ef;
+        --ink: #2b261f;
+        --muted: #6b645b;
+        --line: #d9d2c7;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--ink);
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      main {
+        max-width: 28rem;
+        padding: 2rem 1.5rem;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: 1.35rem;
+        font-weight: 600;
+      }
+      p,
+      ol {
+        margin: 0 0 0.85rem;
+        color: var(--muted);
+      }
+      code {
+        font-family: ui-monospace, monospace;
+        font-size: 0.9em;
+        color: var(--ink);
+      }
+      ol {
+        padding-left: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>还没有网页地址</h1>
+      <p>这个小窗口会打开你的 Super Productivity 网页，并直接进入「今日」待办。</p>
+      <ol>
+        <li>把线上地址写进 <code>desktop/web-url.txt</code></li>
+        <li>或启动前设置环境变量 <code>SP_WEB_URL</code></li>
+        <li>再运行 <code>npm run desktop</code></li>
+      </ol>
+      <p>手机和电脑必须用同一个生产地址。Vercel 生产环境不要开 Deployment Protection。</p>
+    </main>
+  </body>
+</html>
