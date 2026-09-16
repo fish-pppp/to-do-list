@@ -25,16 +25,9 @@ npm start
 
 默认开发地址是 `http://127.0.0.1:4200`。
 
-### 电脑上的「今日待办」小应用
+### 电脑小窗口 / iPhone 主屏幕
 
-独立的 Electron 窗口，打开后直接进入当天待办：
-
-```bash
-npm ci
-npm run desktop
-```
-
-把线上地址写进 `desktop/web-url.txt`。iPhone 用 Safari「添加到主屏幕」。说明见 [`desktop/README.md`](desktop/README.md)。
+电脑用 Chrome 或 Edge 打开独立小窗口（同一条生产网址的今日待办）。iPhone 用 Safari「添加到主屏幕」。说明见 [`desktop/README.md`](desktop/README.md)。
 
 ### 部署到 Vercel
 
