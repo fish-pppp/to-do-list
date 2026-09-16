@@ -122,7 +122,9 @@ const startDesktopApp = (electron, appUrl = readTodayTasksUrl()) => {
   });
 };
 
-if (require.main === module) {
+// Electron may not set require.main to this file. Node tests require() it
+// without process.versions.electron, so they only get the exports.
+if (process.versions.electron || require.main === module) {
   let electron;
   try {
     electron = require('electron');
