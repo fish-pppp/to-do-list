@@ -1,112 +1,124 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, shell } = require('electron');
-const fs = require('node:fs');
-const path = require('node:path');
-const { resolveWebUrl, toTodayTasksUrl, isSameOrigin } = require('./today-url.cjs');
+const {
+  WINDOW_WIDTH,
+  WINDOW_HEIGHT,
+  readWebUrl,
+  isSameAppOrigin,
+  shouldOpenExternally,
+} = require('./read-web-url.cjs');
 
-const APP_NAME = '今日待办';
-const WINDOW_WIDTH = 420;
-const WINDOW_HEIGHT = 780;
-const WEB_URL_FILE = path.join(__dirname, 'web-url.txt');
-const SETUP_PAGE = path.join(__dirname, 'setup.html');
+const APP_NAME = 'Super Productivity';
 
-const readConfiguredUrl = () => {
-  let fileContents = '';
-  try {
-    fileContents = fs.readFileSync(WEB_URL_FILE, 'utf8');
-  } catch {
-    fileContents = '';
+/**
+ * @param {{ preventDefault?: () => void }} [event]
+ * @param {{ openExternal: (url: string) => unknown }} shell
+ * @param {string} appUrl
+ * @param {string} targetUrl
+ * @returns {'allow' | 'deny'}
+ */
+const handleExternalNavigation = (event, shell, appUrl, targetUrl) => {
+  if (isSameAppOrigin(appUrl, targetUrl)) {
+    return 'allow';
   }
-  return resolveWebUrl({
-    envUrl: process.env.SP_WEB_URL,
-    fileContents,
-  });
+  if (event && typeof event.preventDefault === 'function') {
+    event.preventDefault();
+  }
+  if (shouldOpenExternally(appUrl, targetUrl)) {
+    void shell.openExternal(targetUrl);
+  }
+  return 'deny';
 };
 
-const createWindow = () => {
+/**
+ * Tiny BrowserWindow that just loads the production web app.
+ * Electron is injected so this file can be unit-tested without the package.
+ *
+ * @param {typeof import('electron')} electron
+ * @param {string} appUrl
+ */
+const createDesktopWindow = (electron, appUrl) => {
+  const { BrowserWindow, Menu, shell } = electron;
+  Menu.setApplicationMenu(null);
+
   const win = new BrowserWindow({
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
     minWidth: 360,
-    minHeight: 520,
+    minHeight: 560,
     title: APP_NAME,
     autoHideMenuBar: true,
-    backgroundColor: '#f7f4ef',
-    show: false,
+    show: true,
     webPreferences: {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      spellcheck: false,
+      nodeIntegrationInSubFrames: false,
     },
   });
 
-  const configured = readConfiguredUrl();
-  const todayUrl = toTodayTasksUrl(configured);
-
-  win.once('ready-to-show', () => {
-    win.show();
-  });
+  win.setMenuBarVisibility(false);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
-    return { action: 'deny' };
+    const action = handleExternalNavigation(undefined, shell, appUrl, url);
+    return { action };
   });
 
   win.webContents.on('will-navigate', (event, url) => {
-    if (!todayUrl) {
-      return;
-    }
-    if (!isSameOrigin(url, todayUrl)) {
-      event.preventDefault();
-      void shell.openExternal(url);
-    }
+    handleExternalNavigation(event, shell, appUrl, url);
   });
 
-  if (!todayUrl) {
-    void win.loadFile(SETUP_PAGE);
-    return win;
-  }
-
-  void win.loadURL(todayUrl);
+  void win.loadURL(appUrl);
   return win;
 };
 
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    const [win] = BrowserWindow.getAllWindows();
-    if (!win) {
-      return;
-    }
-    if (win.isMinimized()) {
-      win.restore();
-    }
-    win.focus();
-  });
-
-  app.setName(APP_NAME);
+/**
+ * @param {typeof import('electron')} electron
+ * @param {string} [appUrl]
+ */
+const startDesktopApp = (electron, appUrl = readWebUrl()) => {
+  const { app, BrowserWindow } = electron;
 
   if (process.platform === 'linux') {
     app.commandLine.appendSwitch('gtk-version', '3');
   }
 
+  app.setName(APP_NAME);
+
+  const open = () => {
+    createDesktopWindow(electron, appUrl);
+  };
+
   void app.whenReady().then(() => {
-    Menu.setApplicationMenu(null);
-    createWindow();
+    open();
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        open();
       }
     });
   });
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
+    app.quit();
   });
+};
+
+if (require.main === module) {
+  let electron;
+  try {
+    electron = require('electron');
+  } catch {
+    console.error(
+      'Electron is not installed. Use npm run desktop (Chrome/Edge --app=) instead.',
+    );
+    process.exit(1);
+  }
+  startDesktopApp(electron);
 }
+
+module.exports = {
+  APP_NAME,
+  createDesktopWindow,
+  startDesktopApp,
+  handleExternalNavigation,
+};

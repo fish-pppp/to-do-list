@@ -1,44 +1,43 @@
-# 今日待办（Electron 小窗口）
+# 简洁桌面窗口 / Simple desktop window
 
-独立的电脑小应用：打开后只显示当天的待办，而不是浏览器标签页，也不是官方完整桌面客户端。
+电脑用独立小窗口打开**同一条生产网址**（不是浏览器标签，也不是官方 Super Productivity 桌面软件）。
 
-它加载你已经部署的 Super Productivity **网页**，并进入 `#/tag/TODAY/tasks`。数据和手机是同一份（同一网址 + 云备份），不会再造一套任务列表。
+同一网址 = 同一份 IndexedDB。换域名等于空清单。
 
-## 启动
+## 设置网址 / Set the URL
 
-在仓库根目录（需要已经 `npm ci`，以便使用项目自带的 Electron）：
+1. 编辑 `desktop/web-url.txt`，写成一行 `https://…`
+2. 或设置环境变量 `SP_WEB_URL`
 
-```bash
-npm run desktop
-```
+手机和电脑必须用**同一条**地址。Preview 链接通常有 Vercel 登录墙，日常不要用。
 
-或双击 / 运行：
+当前文件里是已确认能打开 Super Productivity 的公开地址。如果你后来有了固定的 Production 域名，改成那一条，并在手机上重新「添加到主屏幕」。
 
-- Windows：`desktop/open-today.cmd`
-- macOS / Linux：`desktop/open-today.sh`
+## 关掉 Vercel 保护 / Deployment Protection
 
-窗口大约 420×780，适合放在屏幕一侧看当天任务。
+Vercel → 项目 → Settings → Deployment Protection：关掉 Production 的 SSO / Vercel Authentication。否则 iPhone 主屏幕图标会停在登录页。
 
-## 指向线上地址
+## 电脑打开 / Computer
 
-默认读取 `desktop/web-url.txt`。也可以用环境变量覆盖：
+默认用本机 **Chrome 或 Edge** 的 `--app=`（约 420×780，可竖在屏幕一侧）。
 
-```bash
-SP_WEB_URL=https://your-app.vercel.app npm run desktop
-```
+- Windows：双击 `desktop/open-windows.cmd`，或在仓库根目录运行 `npm run desktop`
+- macOS：双击 `desktop/open-mac.command`，或 `npm run desktop`
+- Linux：运行 `desktop/open-linux.sh`，或 `npm run desktop`
 
-手机（Safari 添加到主屏幕）和这个窗口必须用**同一个生产地址**。Preview 地址通常有 Vercel 登录墙，日常不要用。
+`npm run desktop:chrome` 只走浏览器。`npm run desktop:electron` 仅在本仓库已安装 Electron 时可用；那是另一套本地存储，日常请用 Chrome/Edge 窗口。
 
-生产环境请关掉 Vercel **Deployment Protection**，否则 iPhone 打不开。
+不要用官方 Super Productivity 桌面客户端打开这份清单，那会再造一套 IndexedDB。
 
-## 和手机同步
+## iPhone
 
-网页数据存在每个设备自己的 IndexedDB 里。换网址或仅重新部署看起来像“列表空了”，其实是新的本地库。
+1. 用 **Safari**（不要用微信 / Chrome）打开**同一条生产网址**
+2. 底部分享按钮 → **添加到主屏幕**
+3. 以后从主屏幕图标进入（独立窗口，不是 Safari 标签）
 
-要让手机和电脑看到同一份今日待办：先在网页设置里配好云备份（同一把 `SYNC_KEY`），在一台设备备份，另一台恢复。
+## 和手机同步 / Sync
 
-## iPhone 直接打开
+只有同时满足才会一起更新：
 
-1. 用 Safari 打开**生产地址**（不要用 Preview）
-2. 分享 → 添加到主屏幕
-3. 以后从主屏幕图标进入，全屏打开今日待办
+1. 手机和电脑打开**同一条**生产网址
+2. 网页里已配置云备份（同一把密钥；见 PR #4），并在一台设备备份、另一台恢复
