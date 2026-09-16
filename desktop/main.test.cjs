@@ -60,7 +60,7 @@ const createFakeElectron = () => {
   };
 };
 
-test('createDesktopWindow: sidebar size, no menu, sandboxed, loads URL', () => {
+test('createDesktopWindow: sidebar size, no menu, sandboxed, loads Today', () => {
   const { electron, windows } = createFakeElectron();
   createDesktopWindow(electron, APP_URL);
 
@@ -68,6 +68,7 @@ test('createDesktopWindow: sidebar size, no menu, sandboxed, loads URL', () => {
   const win = windows[0];
   assert.equal(win.options.width, WINDOW_WIDTH);
   assert.equal(win.options.height, WINDOW_HEIGHT);
+  assert.equal(win.options.title, '今日待办');
   assert.equal(win.options.autoHideMenuBar, true);
   assert.equal(win.menuBarVisible, false);
   assert.equal(electron.BrowserWindow.lastMenu, null);
@@ -77,7 +78,7 @@ test('createDesktopWindow: sidebar size, no menu, sandboxed, loads URL', () => {
     nodeIntegration: false,
     nodeIntegrationInSubFrames: false,
   });
-  assert.equal(win.loadedUrl, APP_URL);
+  assert.equal(win.loadedUrl, 'https://tasks.example/#/tag/TODAY/tasks');
 });
 
 test('createDesktopWindow: foreign links open in the system browser', () => {

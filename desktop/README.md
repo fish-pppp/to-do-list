@@ -1,43 +1,47 @@
-# 简洁桌面窗口 / Simple desktop window
+# 今日待办（Electron 小应用）
 
-电脑用独立小窗口打开**同一条生产网址**（不是浏览器标签，也不是官方 Super Productivity 桌面软件）。
+单独的电脑小窗口：打开后直接进入当天的待办，不是浏览器标签，也不是官方完整桌面客户端。
 
-同一网址 = 同一份 IndexedDB。换域名等于空清单。
+它用项目里已有的 Electron，加载你已经部署的 Super Productivity **网页**，并进入 `#/tag/TODAY/tasks`。不会再造一套任务列表。
 
-## 设置网址 / Set the URL
+## 启动
 
-1. 编辑 `desktop/web-url.txt`，写成一行 `https://…`
-2. 或设置环境变量 `SP_WEB_URL`
+仓库根目录（`npm ci` 之后，以便使用自带的 Electron）：
 
-手机和电脑必须用**同一条**地址。Preview 链接通常有 Vercel 登录墙，日常不要用。
+```bash
+npm run desktop
+```
 
-当前文件里是已确认能打开 Super Productivity 的公开地址。如果你后来有了固定的 Production 域名，改成那一条，并在手机上重新「添加到主屏幕」。
+或运行：
 
-## 关掉 Vercel 保护 / Deployment Protection
+- Windows：`desktop/open-windows.cmd`
+- macOS：`desktop/open-mac.command`
+- Linux：`desktop/open-linux.sh`
 
-Vercel → 项目 → Settings → Deployment Protection：关掉 Production 的 SSO / Vercel Authentication。否则 iPhone 主屏幕图标会停在登录页。
+窗口大约 420×780，适合竖在屏幕一侧看当天任务。没有 Electron 时，启动脚本会退回 Chrome / Edge 的 `--app=` 窗口。
 
-## 电脑打开 / Computer
+只要浏览器窗口：`npm run desktop:chrome`。
 
-默认用本机 **Chrome 或 Edge** 的 `--app=`（约 420×780，可竖在屏幕一侧）。
+## 指向线上地址
 
-- Windows：双击 `desktop/open-windows.cmd`，或在仓库根目录运行 `npm run desktop`
-- macOS：双击 `desktop/open-mac.command`，或 `npm run desktop`
-- Linux：运行 `desktop/open-linux.sh`，或 `npm run desktop`
+编辑 `desktop/web-url.txt`，或：
 
-`npm run desktop:chrome` 只走浏览器。`npm run desktop:electron` 仅在本仓库已安装 Electron 时可用；那是另一套本地存储，日常请用 Chrome/Edge 窗口。
+```bash
+SP_WEB_URL=https://your-app.vercel.app npm run desktop
+```
 
-不要用官方 Super Productivity 桌面客户端打开这份清单，那会再造一套 IndexedDB。
+手机（Safari 添加到主屏幕）和这个窗口必须用**同一个生产地址**。不要用带 Vercel 登录墙的 Preview 链接。
 
-## iPhone
+生产环境请关掉 Vercel **Deployment Protection**，否则 iPhone 打不开。
 
-1. 用 **Safari**（不要用微信 / Chrome）打开**同一条生产网址**
-2. 底部分享按钮 → **添加到主屏幕**
-3. 以后从主屏幕图标进入（独立窗口，不是 Safari 标签）
+## 和手机同步
 
-## 和手机同步 / Sync
+每个设备自己的 IndexedDB 是分开的。要让手机和电脑看到同一份今日待办：在网页设置里配好云备份（同一把密钥），一台备份、另一台恢复。
 
-只有同时满足才会一起更新：
+不要用官方 Super Productivity 桌面客户端打开这份清单，那会再造一套本地数据。
 
-1. 手机和电脑打开**同一条**生产网址
-2. 网页里已配置云备份（同一把密钥；见 PR #4），并在一台设备备份、另一台恢复
+## iPhone 直接打开
+
+1. 用 Safari 打开**同一条生产地址**
+2. 分享 → 添加到主屏幕
+3. 以后从主屏幕图标进入

@@ -6,6 +6,7 @@ const path = require('node:path');
 const DEFAULT_URL_FILE = path.join(__dirname, 'web-url.txt');
 const WINDOW_WIDTH = 420;
 const WINDOW_HEIGHT = 780;
+const TODAY_HASH_PATH = '/tag/TODAY/tasks';
 
 /**
  * @param {string | undefined} raw
@@ -48,6 +49,24 @@ const normalizeWebUrl = (raw) => {
   }
   return url.toString();
 };
+
+/**
+ * Open the virtual Today list. The web app uses hash routing.
+ *
+ * @param {string} baseUrl
+ * @returns {string}
+ */
+const toTodayTasksUrl = (baseUrl) => {
+  const url = new URL(normalizeWebUrl(baseUrl));
+  url.hash = TODAY_HASH_PATH;
+  return url.toString();
+};
+
+/**
+ * @param {{ env?: NodeJS.ProcessEnv, urlFile?: string }} [options]
+ * @returns {string}
+ */
+const readTodayTasksUrl = (options) => toTodayTasksUrl(readWebUrl(options));
 
 /**
  * Prefer SP_WEB_URL, then the first non-comment line in the url file.
@@ -107,10 +126,13 @@ const shouldOpenExternally = (appUrl, targetUrl) => {
 
 module.exports = {
   DEFAULT_URL_FILE,
+  TODAY_HASH_PATH,
   WINDOW_WIDTH,
   WINDOW_HEIGHT,
   firstConfigLine,
   normalizeWebUrl,
+  toTodayTasksUrl,
+  readTodayTasksUrl,
   readWebUrl,
   isSameAppOrigin,
   shouldOpenExternally,

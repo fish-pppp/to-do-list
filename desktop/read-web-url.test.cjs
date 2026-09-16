@@ -9,6 +9,7 @@ const {
   firstConfigLine,
   normalizeWebUrl,
   readWebUrl,
+  toTodayTasksUrl,
   isSameAppOrigin,
   shouldOpenExternally,
 } = require('./read-web-url.cjs');
@@ -76,6 +77,17 @@ test('readWebUrl: fails when nothing usable is configured', () => {
 test('committed web-url.txt is a usable http(s) URL', () => {
   const url = readWebUrl({ env: {}, urlFile: path.join(__dirname, 'web-url.txt') });
   assert.match(url, /^https:\/\//);
+});
+
+test('toTodayTasksUrl pins the Today task list hash route', () => {
+  assert.equal(
+    toTodayTasksUrl('https://tasks.example'),
+    'https://tasks.example/#/tag/TODAY/tasks',
+  );
+  assert.equal(
+    toTodayTasksUrl('https://tasks.example/#/config'),
+    'https://tasks.example/#/tag/TODAY/tasks',
+  );
 });
 
 test('isSameAppOrigin compares origin only', () => {

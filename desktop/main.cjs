@@ -3,12 +3,13 @@
 const {
   WINDOW_WIDTH,
   WINDOW_HEIGHT,
-  readWebUrl,
+  readTodayTasksUrl,
+  toTodayTasksUrl,
   isSameAppOrigin,
   shouldOpenExternally,
 } = require('./read-web-url.cjs');
 
-const APP_NAME = 'Super Productivity';
+const APP_NAME = '今日待办';
 
 /**
  * @param {{ preventDefault?: () => void }} [event]
@@ -39,6 +40,7 @@ const handleExternalNavigation = (event, shell, appUrl, targetUrl) => {
  */
 const createDesktopWindow = (electron, appUrl) => {
   const { BrowserWindow, Menu, shell } = electron;
+  const todayUrl = toTodayTasksUrl(appUrl);
   Menu.setApplicationMenu(null);
 
   const win = new BrowserWindow({
@@ -60,15 +62,15 @@ const createDesktopWindow = (electron, appUrl) => {
   win.setMenuBarVisibility(false);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    const action = handleExternalNavigation(undefined, shell, appUrl, url);
+    const action = handleExternalNavigation(undefined, shell, todayUrl, url);
     return { action };
   });
 
   win.webContents.on('will-navigate', (event, url) => {
-    handleExternalNavigation(event, shell, appUrl, url);
+    handleExternalNavigation(event, shell, todayUrl, url);
   });
 
-  void win.loadURL(appUrl);
+  void win.loadURL(todayUrl);
   return win;
 };
 
@@ -76,7 +78,7 @@ const createDesktopWindow = (electron, appUrl) => {
  * @param {typeof import('electron')} electron
  * @param {string} [appUrl]
  */
-const startDesktopApp = (electron, appUrl = readWebUrl()) => {
+const startDesktopApp = (electron, appUrl = readTodayTasksUrl()) => {
   const { app, BrowserWindow } = electron;
 
   if (process.platform === 'linux') {
@@ -85,9 +87,26 @@ const startDesktopApp = (electron, appUrl = readWebUrl()) => {
 
   app.setName(APP_NAME);
 
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+    return;
+  }
+
   const open = () => {
     createDesktopWindow(electron, appUrl);
   };
+
+  app.on('second-instance', () => {
+    const [win] = BrowserWindow.getAllWindows();
+    if (!win) {
+      return;
+    }
+    if (typeof win.restore === 'function' && win.isMinimized()) {
+      win.restore();
+    }
+    win.focus();
+  });
 
   void app.whenReady().then(() => {
     open();
@@ -109,7 +128,7 @@ if (require.main === module) {
     electron = require('electron');
   } catch {
     console.error(
-      'Electron is not installed. Use npm run desktop (Chrome/Edge --app=) instead.',
+      'Electron is not installed. Run npm ci, or use npm run desktop:chrome.',
     );
     process.exit(1);
   }

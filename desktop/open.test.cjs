@@ -63,8 +63,8 @@ test('launchDesktop --print-url prints the configured URL and does not spawn', (
       spawnFn: (command) => spawned.push(command),
       log: (msg) => printed.push(msg),
     });
-    assert.equal(result.url, 'https://tasks.example/');
-    assert.deepEqual(printed, ['https://tasks.example/']);
+    assert.equal(result.url, 'https://tasks.example/#/tag/TODAY/tasks');
+    assert.deepEqual(printed, ['https://tasks.example/#/tag/TODAY/tasks']);
     assert.deepEqual(spawned, []);
     assert.equal(chrome.endsWith('google-chrome'), true);
   } finally {
@@ -72,12 +72,12 @@ test('launchDesktop --print-url prints the configured URL and does not spawn', (
   }
 });
 
-test('launchDesktop --print-command prefers Chrome --app=', () => {
+test('launchDesktop --browser --print-command uses Chrome --app= on Today', () => {
   const { dir, chrome } = makeChromeDir();
   const printed = [];
   try {
     const result = launchDesktop({
-      argv: ['--print-command'],
+      argv: ['--browser', '--print-command'],
       env: { SP_WEB_URL: 'https://tasks.example/', PATH: dir },
       platform: 'linux',
       spawnFn: () => {
@@ -89,11 +89,11 @@ test('launchDesktop --print-command prefers Chrome --app=', () => {
     assert.deepEqual(result.command, {
       exe: chrome,
       args: [
-        '--app=https://tasks.example/',
+        '--app=https://tasks.example/#/tag/TODAY/tasks',
         `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
       ],
     });
-    assert.equal(printed[0].includes('--app=https://tasks.example/'), true);
+    assert.equal(printed[0].includes('--app=https://tasks.example/#/tag/TODAY/tasks'), true);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

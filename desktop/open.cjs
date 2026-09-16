@@ -4,7 +4,7 @@
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
-const { WINDOW_WIDTH, WINDOW_HEIGHT, readWebUrl } = require('./read-web-url.cjs');
+const { WINDOW_WIDTH, WINDOW_HEIGHT, readTodayTasksUrl } = require('./read-web-url.cjs');
 
 const REPO_ROOT = path.join(__dirname, '..');
 const ELECTRON_MAIN = path.join(__dirname, 'main.cjs');
@@ -159,7 +159,7 @@ const launchDesktop = ({
   log = console.log,
 } = {}) => {
   const flags = parseLaunchArgs(argv);
-  const url = readWebUrl({ env });
+  const url = readTodayTasksUrl({ env });
 
   if (flags.printUrl) {
     log(url);
@@ -185,8 +185,8 @@ const launchDesktop = ({
     chosen = browserCommand;
     kind = 'browser';
   } else {
-    chosen = browserCommand || electronCommand;
-    kind = browserCommand ? 'browser' : 'electron';
+    chosen = electronCommand || browserCommand;
+    kind = electronCommand ? 'electron' : 'browser';
   }
 
   if (!chosen) {

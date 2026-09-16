@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 
 if command -v node >/dev/null 2>&1; then
-  exec node ./open.cjs --browser
+  exec node ./open.cjs
 fi
 
 if [ -z "${SP_WEB_URL:-}" ]; then
@@ -22,7 +22,7 @@ if [ -z "${SP_WEB_URL:-}" ]; then
 fi
 
 open_chrome() {
-  open -na "$1" --args --app="$SP_WEB_URL" --window-size=420,780
+  open -na "$1" --args --app="${SP_WEB_URL}#/tag/TODAY/tasks" --window-size=420,780
 }
 
 if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then

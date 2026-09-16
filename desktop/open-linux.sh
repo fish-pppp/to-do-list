@@ -3,7 +3,7 @@ set -eu
 cd "$(dirname "$0")"
 
 if command -v node >/dev/null 2>&1; then
-  exec node ./open.cjs --browser
+  exec node ./open.cjs
 fi
 
 if [ -z "${SP_WEB_URL:-}" ]; then
@@ -30,7 +30,7 @@ for bin in \
   microsoft-edge
 do
   if command -v "$bin" >/dev/null 2>&1; then
-    exec "$bin" --app="$SP_WEB_URL" --window-size=420,780
+    exec "$bin" --app="${SP_WEB_URL}#/tag/TODAY/tasks" --window-size=420,780
   fi
 done
 

@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 where node >nul 2>&1
 if %errorlevel%==0 (
-  node "%~dp0open.cjs" --browser
+  node "%~dp0open.cjs"
   exit /b %errorlevel%
 )
 
@@ -21,7 +21,7 @@ echo Set SP_WEB_URL or put an https URL in desktop\web-url.txt
 exit /b 1
 
 :have_url
-set "APP=--app=!SP_WEB_URL!"
+set "APP=--app=!SP_WEB_URL!#/tag/TODAY/tasks"
 set "SIZE=--window-size=420,780"
 
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
