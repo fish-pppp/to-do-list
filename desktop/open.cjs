@@ -40,8 +40,7 @@ const isFile = (filePath) => {
 const lookOnPath = (name, env, platform) => {
   const pathVal = env.PATH || env.Path || '';
   const sep = platform === 'win32' ? ';' : ':';
-  const exts =
-    platform === 'win32' ? env.PATHEXT || '.EXE;.CMD;.BAT;.COM' : '';
+  const exts = platform === 'win32' ? env.PATHEXT || '.EXE;.CMD;.BAT;.COM' : '';
   const extraExts = platform === 'win32' ? exts.split(';').filter(Boolean) : [''];
   if (!extraExts.includes('')) {
     extraExts.unshift('');
@@ -119,7 +118,10 @@ const resolveElectronBinary = (root = REPO_ROOT) => {
  * @param {string} url
  * @returns {string[]}
  */
-const buildChromiumArgs = (url) => [`--app=${url}`, `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`];
+const buildChromiumArgs = (url) => [
+  `--app=${url}`,
+  `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
+];
 
 /**
  * @param {string[]} argv

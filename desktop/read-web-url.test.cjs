@@ -23,7 +23,10 @@ const writeTempUrlFile = (contents) => {
 };
 
 test('firstConfigLine skips comments, blanks, and wrapping quotes', () => {
-  assert.equal(firstConfigLine('# x\n\n// y\n  "https://a.example/"  \n'), 'https://a.example/');
+  assert.equal(
+    firstConfigLine('# x\n\n// y\n  "https://a.example/"  \n'),
+    'https://a.example/',
+  );
   assert.equal(firstConfigLine(''), '');
   assert.equal(firstConfigLine('  # only a comment'), '');
 });

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const DEFAULT_URL_FILE = path.join(__dirname, 'web-url.txt');
+// Chrome/Edge --app= fallback size; the Electron app uses window-mode.cjs.
 const WINDOW_WIDTH = 420;
 const WINDOW_HEIGHT = 780;
 const TODAY_HASH_PATH = '/tag/TODAY/tasks';
@@ -134,7 +135,10 @@ const shouldOpenExternally = (appUrl, targetUrl) => {
  * @returns {string}
  */
 const stripElectronFromUserAgent = (userAgent) =>
-  String(userAgent || '').replace(ELECTRON_UA_RE, '').replace(/\s+/g, ' ').trim();
+  String(userAgent || '')
+    .replace(ELECTRON_UA_RE, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
 module.exports = {
   DEFAULT_URL_FILE,

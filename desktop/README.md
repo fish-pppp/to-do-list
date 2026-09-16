@@ -18,7 +18,16 @@ npm run desktop
 - macOS：`desktop/open-mac.command`
 - Linux：`desktop/open-linux.sh`
 
-窗口大约 420×780，适合竖在屏幕一侧。没有 Electron 时，启动脚本可以退回 Chrome / Edge 的 `--app=` 窗口：`npm run desktop:chrome`。
+## 小窗口 / 大窗口
+
+默认是约 340×540 的小窗口，只看当天待办，可以放在屏幕角落。
+
+- **Ctrl+Shift+F**（macOS：**Cmd+Shift+F**）：在小窗口和约 1100×760 的完整网页之间切换
+- 也可以直接拖边框、点最大化，或双击标题栏放大
+
+两种大小各自的位置和尺寸会记住，下次打开还是上次的样子。
+
+没有 Electron 时，启动脚本可以退回 Chrome / Edge 的 `--app=` 窗口：`npm run desktop:chrome`。
 
 这个小窗口按网页来跑（不是官方桌面端）。不要用官方 Super Productivity 桌面客户端打开同一份清单。
 

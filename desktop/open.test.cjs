@@ -42,10 +42,7 @@ test('buildChromiumArgs uses --app= and the sidebar window size', () => {
 test('resolveChromium finds a PATH browser on linux', () => {
   const { dir, chrome } = makeChromeDir();
   try {
-    assert.equal(
-      resolveChromium({ platform: 'linux', env: { PATH: dir } }),
-      chrome,
-    );
+    assert.equal(resolveChromium({ platform: 'linux', env: { PATH: dir } }), chrome);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -112,7 +109,10 @@ test('launchDesktop --browser --print-command uses Chrome --app= on Today', () =
         `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
       ],
     });
-    assert.equal(printed[0].includes('--app=https://tasks.example/#/tag/TODAY/tasks'), true);
+    assert.equal(
+      printed[0].includes('--app=https://tasks.example/#/tag/TODAY/tasks'),
+      true,
+    );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
