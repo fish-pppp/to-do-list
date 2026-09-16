@@ -21,7 +21,13 @@ const createFakeElectron = () => {
       this.loadedUrl = '';
       this.windowOpenHandler = null;
       this.listeners = {};
+      this.userAgent =
+        'Mozilla/5.0 Chrome/144.0.7559.60 Electron/43.5.0 Safari/537.36';
       this.webContents = {
+        getUserAgent: () => this.userAgent,
+        setUserAgent: (ua) => {
+          this.userAgent = ua;
+        },
         setWindowOpenHandler: (fn) => {
           this.windowOpenHandler = fn;
         },
@@ -79,6 +85,7 @@ test('createDesktopWindow: sidebar size, no menu, sandboxed, loads Today', () =>
     nodeIntegrationInSubFrames: false,
   });
   assert.equal(win.loadedUrl, 'https://tasks.example/#/tag/TODAY/tasks');
+  assert.equal(win.userAgent.includes('Electron'), false);
 });
 
 test('createDesktopWindow: foreign links open in the system browser', () => {

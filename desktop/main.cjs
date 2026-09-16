@@ -5,6 +5,7 @@ const {
   WINDOW_HEIGHT,
   readTodayTasksUrl,
   toTodayTasksUrl,
+  stripElectronFromUserAgent,
   isSameAppOrigin,
   shouldOpenExternally,
 } = require('./read-web-url.cjs');
@@ -32,7 +33,7 @@ const handleExternalNavigation = (event, shell, appUrl, targetUrl) => {
 };
 
 /**
- * Tiny BrowserWindow that just loads the production web app.
+ * Tiny BrowserWindow that opens the web Today list.
  * Electron is injected so this file can be unit-tested without the package.
  *
  * @param {typeof import('electron')} electron
@@ -61,6 +62,15 @@ const createDesktopWindow = (electron, appUrl) => {
 
   win.setMenuBarVisibility(false);
 
+  if (
+    typeof win.webContents.getUserAgent === 'function' &&
+    typeof win.webContents.setUserAgent === 'function'
+  ) {
+    win.webContents.setUserAgent(
+      stripElectronFromUserAgent(win.webContents.getUserAgent()),
+    );
+  }
+
   win.webContents.setWindowOpenHandler(({ url }) => {
     const action = handleExternalNavigation(undefined, shell, todayUrl, url);
     return { action };
@@ -86,27 +96,13 @@ const startDesktopApp = (electron, appUrl = readTodayTasksUrl()) => {
   }
 
   app.setName(APP_NAME);
-
-  const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    app.quit();
-    return;
+  if (typeof app.userAgentFallback === 'string') {
+    app.userAgentFallback = stripElectronFromUserAgent(app.userAgentFallback);
   }
 
   const open = () => {
     createDesktopWindow(electron, appUrl);
   };
-
-  app.on('second-instance', () => {
-    const [win] = BrowserWindow.getAllWindows();
-    if (!win) {
-      return;
-    }
-    if (typeof win.restore === 'function' && win.isMinimized()) {
-      win.restore();
-    }
-    win.focus();
-  });
 
   void app.whenReady().then(() => {
     open();

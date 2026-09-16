@@ -7,6 +7,7 @@ const DEFAULT_URL_FILE = path.join(__dirname, 'web-url.txt');
 const WINDOW_WIDTH = 420;
 const WINDOW_HEIGHT = 780;
 const TODAY_HASH_PATH = '/tag/TODAY/tasks';
+const ELECTRON_UA_RE = /\s*Electron\/\S+/gi;
 
 /**
  * @param {string | undefined} raw
@@ -124,6 +125,17 @@ const shouldOpenExternally = (appUrl, targetUrl) => {
   return !isSameAppOrigin(appUrl, targetUrl);
 };
 
+/**
+ * The web app treats an Electron user-agent as the official desktop client
+ * and immediately calls window.ea. This thin window has no preload bridge,
+ * so strip Electron from the UA and run as the website.
+ *
+ * @param {string} userAgent
+ * @returns {string}
+ */
+const stripElectronFromUserAgent = (userAgent) =>
+  String(userAgent || '').replace(ELECTRON_UA_RE, '').replace(/\s+/g, ' ').trim();
+
 module.exports = {
   DEFAULT_URL_FILE,
   TODAY_HASH_PATH,
@@ -136,4 +148,5 @@ module.exports = {
   readWebUrl,
   isSameAppOrigin,
   shouldOpenExternally,
+  stripElectronFromUserAgent,
 };

@@ -12,6 +12,7 @@ const {
   toTodayTasksUrl,
   isSameAppOrigin,
   shouldOpenExternally,
+  stripElectronFromUserAgent,
 } = require('./read-web-url.cjs');
 
 const writeTempUrlFile = (contents) => {
@@ -77,6 +78,13 @@ test('readWebUrl: fails when nothing usable is configured', () => {
 test('committed web-url.txt is a usable http(s) URL', () => {
   const url = readWebUrl({ env: {}, urlFile: path.join(__dirname, 'web-url.txt') });
   assert.match(url, /^https:\/\//);
+});
+
+test('stripElectronFromUserAgent keeps a normal browser UA', () => {
+  const ua =
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.7559.60 Electron/43.5.0 Safari/537.36';
+  assert.equal(stripElectronFromUserAgent(ua).includes('Electron'), false);
+  assert.equal(stripElectronFromUserAgent(ua).includes('Chrome/144'), true);
 });
 
 test('toTodayTasksUrl pins the Today task list hash route', () => {
