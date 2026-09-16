@@ -135,15 +135,16 @@ const createDesktopWindow = (electron, appUrl, options = {}) => {
   const toggleMode = () => {
     rememberBounds();
     state = toggled(state);
+    const target = state.bounds[state.mode];
+    // Decide before setBounds: the resize event it triggers records a position.
+    const needsCenter =
+      state.mode === FULL && (target.x === undefined || target.y === undefined);
     if (typeof win.isMaximized === 'function' && win.isMaximized()) {
       win.unmaximize();
     }
-    win.setBounds(state.bounds[state.mode]);
-    if (state.mode === FULL && typeof win.center === 'function') {
-      const b = state.bounds[FULL];
-      if (b.x === undefined || b.y === undefined) {
-        win.center();
-      }
+    win.setBounds(target);
+    if (needsCenter && typeof win.center === 'function') {
+      win.center();
     }
     store.save(state);
   };
