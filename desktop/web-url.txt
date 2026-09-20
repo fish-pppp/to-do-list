@@ -1,0 +1,3 @@
+# Same production URL as iPhone. First non-empty, non-# line wins.
+# 手机和电脑必须用这一条。不要写 Vercel Preview 链接。
+https://to-do-list-super-sync-server-kpvo.vercel.app
