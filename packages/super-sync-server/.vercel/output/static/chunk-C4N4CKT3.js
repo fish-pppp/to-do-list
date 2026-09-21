@@ -1,0 +1,2 @@
+import{Ca as r,ie as n}from"./chunk-BYZBW3B6.js";import{a as o,f as i}from"./chunk-FDTJTD3F.js";import{e as I}from"./chunk-PE6UJDCZ.js";var t,E,p,_=I(()=>{"use strict";n();t=!!window.SUPAndroid,E=!!window.SUPFDroid,p=new r("IS_ANDROID_WEB_VIEW",{providedIn:"root",factory:()=>t})});var c,d,m,e=I(()=>{"use strict";i();_();c=o.isNativePlatform()||t,d=o.getPlatform()==="ios",m=o.getPlatform()==="android"||t});export{t as a,E as b,p as c,_ as d,c as e,d as f,m as g,e as h};
+//# sourceMappingURL=chunk-C4N4CKT3.js.map

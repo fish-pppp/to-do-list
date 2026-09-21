@@ -55,6 +55,17 @@
         "maxAge": "1h",
         "timeout": "10s"
       }
+    },
+    {
+      "name": "cloud-backup-api",
+      "urls": ["/api/backup"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 1,
+        "maxAge": "0u",
+        "timeout": "30s"
+      }
     }
-  ]
+  ],
+  "navigationUrls": ["/**", "!/**/*.*", "!/**/*__*", "!/**/*__*/**", "!/api/**"]
 }
