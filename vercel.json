@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm run buildFrontend:prodWeb",
+  "buildCommand": "npm_config_production=false NPM_CONFIG_INCLUDE=dev npm run buildFrontend:prodWeb",
   "outputDirectory": "dist/browser",
   "installCommand": "HUSKY=0 NODE_ENV=development npm ci --include=dev --ignore-scripts && npx --yes patch-package@8.0.1 && npx ts-patch install",
   "rewrites": [
