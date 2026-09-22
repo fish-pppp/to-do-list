@@ -9,4 +9,4 @@ npm run sync-core:build
 npm run sync-providers:build
 npm run shared-schema:build
 npm run plugin-api:build
-ng build --configuration productionWeb
+npx ng build --configuration productionWeb
