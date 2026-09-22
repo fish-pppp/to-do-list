@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "NODE_OPTIONS=--max-old-space-size=6144 npm_config_production=false NPM_CONFIG_INCLUDE=dev npm run env && node ./tools/git-version.js && npm run sync-core:build && npm run sync-providers:build && npm run shared-schema:build && npm run plugin-api:build && ng build --configuration productionWeb",
+  "buildCommand": "bash scripts/vercel-web-build.sh",
   "outputDirectory": "dist/browser",
   "installCommand": "HUSKY=0 NODE_ENV=development npm ci --include=dev --ignore-scripts && npx --yes patch-package@8.0.1 && npx ts-patch install",
   "rewrites": [
