@@ -47,6 +47,8 @@ test('build script extracts when cwd is the SuperSync package', () => {
   fs.copyFileSync(packageScript, destScript);
   fs.mkdirSync(path.join(tmp, 'deploy-artifacts'), { recursive: true });
   fs.copyFileSync(packageTarball, path.join(tmp, 'deploy-artifacts', 'browser.tgz'));
+  fs.mkdirSync(path.join(tmp, 'api'), { recursive: true });
+  fs.copyFileSync(path.join(repoRoot, 'api', 'backup.js'), path.join(tmp, 'api', 'backup.js'));
 
   const result = spawnSync('bash', [destScript], {
     cwd: tmp,
@@ -54,6 +56,12 @@ test('build script extracts when cwd is the SuperSync package', () => {
   });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.ok(fs.existsSync(path.join(tmp, 'dist', 'browser', 'index.html')));
+  assert.ok(
+    fs.existsSync(
+      path.join(tmp, '.vercel', 'output', 'functions', 'api', 'backup.func', 'index.js'),
+    ),
+  );
+  assert.ok(fs.existsSync(path.join(tmp, '.vercel', 'output', 'static', 'index.html')));
 });
 
 test('repo-root and SuperSync package scripts both exist', () => {

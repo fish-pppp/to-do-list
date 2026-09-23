@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>待办云备份</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 36rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+      }
+      label,
+      button,
+      input,
+      p {
+        display: block;
+        margin: 0.75rem 0;
+      }
+      input[type='password'] {
+        width: 100%;
+        padding: 0.4rem 0.6rem;
+      }
+      .ok {
+        color: #0a7;
+      }
+      .err {
+        color: #c33;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>待办云备份</h1>
+    <p>
+      把本机导出的 JSON 存到云端。换设备或重新上线后，在这里下载，再回到应用里用「从文件导入」。
+    </p>
+    <label for="key">同步密钥（与 Vercel SYNC_KEY 相同）</label>
+    <input id="key" type="password" autocomplete="off" />
+    <label for="file">上传本机导出的备份 JSON</label>
+    <input id="file" type="file" accept="application/json,.json" />
+    <button id="upload" type="button">备份到云端</button>
+    <button id="download" type="button">从云端下载</button>
+    <p id="status"></p>
+    <p><a href="/">返回待办</a></p>
+    <script>
+      const KEY = 'SUP_CLOUD_SYNC_KEY';
+      const statusEl = document.getElementById('status');
+      const keyEl = document.getElementById('key');
+      keyEl.value = localStorage.getItem(KEY) || '';
+
+      const setStatus = (text, cls) => {
+        statusEl.textContent = text;
+        statusEl.className = cls || '';
+      };
+
+      const syncKey = () => {
+        const value = keyEl.value.trim();
+        if (value) {
+          localStorage.setItem(KEY, value);
+        }
+        return value;
+      };
+
+      document.getElementById('upload').onclick = async () => {
+        const key = syncKey();
+        const file = document.getElementById('file').files[0];
+        if (!key) {
+          setStatus('请先填写同步密钥', 'err');
+          return;
+        }
+        if (!file) {
+          setStatus('请先选择导出的 JSON 文件', 'err');
+          return;
+        }
+        try {
+          const body = await file.text();
+          JSON.parse(body);
+          const res = await fetch('/api/backup', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-sp-sync-key': key,
+            },
+            body,
+          });
+          if (!res.ok) {
+            throw new Error(await res.text());
+          }
+          setStatus('已备份到云端', 'ok');
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : '备份失败', 'err');
+        }
+      };
+
+      document.getElementById('download').onclick = async () => {
+        const key = syncKey();
+        if (!key) {
+          setStatus('请先填写同步密钥', 'err');
+          return;
+        }
+        try {
+          const res = await fetch('/api/backup', {
+            headers: { 'x-sp-sync-key': key },
+            cache: 'no-store',
+          });
+          if (!res.ok) {
+            throw new Error(await res.text());
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'super-productivity-backup.json';
+          a.click();
+          URL.revokeObjectURL(url);
+          setStatus('已下载。请回到待办，用「从文件导入」。', 'ok');
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : '下载失败', 'err');
+        }
+      };
+    </script>
+  </body>
+</html>

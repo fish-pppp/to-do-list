@@ -28,6 +28,7 @@ export enum LS {
   // skipped/empty/degraded write. Surfaced in Settings so users can see they're
   // protected (#7901).
   LAST_LOCAL_BACKUP = 'SUP_LAST_LOCAL_BACKUP',
+  CLOUD_SYNC_KEY = 'SUP_CLOUD_SYNC_KEY',
   LOCAL_UI_HELPER = 'SUP_UI_HELPER',
 
   ACTION_LOG = 'SUP_ACTION_LOG',
