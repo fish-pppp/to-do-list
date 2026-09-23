@@ -23,6 +23,7 @@ import { selectSyncConfig } from '../../features/config/store/global-config.redu
 import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
 import { RatePromptService } from '../../features/dialog-please-rate/rate-prompt.service';
 import { JiraElectronBridgeService } from '../../features/issue/providers/jira/jira-electron-bridge.service';
+import { WebCloudBackupService } from '../../imex/web-cloud-backup/web-cloud-backup.service';
 
 describe('StartupService', () => {
   let service: StartupService;
@@ -81,6 +82,8 @@ describe('StartupService', () => {
     const jiraElectronBridgeSpy = jasmine.createSpyObj('JiraElectronBridgeService', [
       'initialize',
     ]);
+    const webCloudBackupSpy = jasmine.createSpyObj('WebCloudBackupService', ['init']);
+    webCloudBackupSpy.init.and.returnValue(Promise.resolve());
 
     const syncWrapperServiceSpy = jasmine.createSpyObj('SyncWrapperService', [
       'isSyncInProgressSync',
@@ -134,6 +137,7 @@ describe('StartupService', () => {
         { provide: RatePromptService, useValue: ratePromptServiceSpy },
         { provide: PluginService, useValue: pluginServiceSpy },
         { provide: JiraElectronBridgeService, useValue: jiraElectronBridgeSpy },
+        { provide: WebCloudBackupService, useValue: webCloudBackupSpy },
         { provide: SyncWrapperService, useValue: syncWrapperServiceSpy },
         { provide: BannerService, useValue: bannerServiceSpy },
         { provide: UiHelperService, useValue: uiHelperServiceSpy },
