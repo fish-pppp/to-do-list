@@ -55,6 +55,38 @@ function blobHeaders(extra) {
   };
 }
 
+function backupTimestamp(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed.timestamp === 'number' ? parsed.timestamp : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function rejectIfCloudIsNewer(req, res) {
+  const raw = req.headers['x-sp-base-timestamp'];
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header === undefined || header === '') {
+    return false;
+  }
+  const base = Number(header);
+  if (!Number.isFinite(base)) {
+    json(res, 400, { error: 'Invalid base timestamp' });
+    return true;
+  }
+  const existing = await getBackup();
+  if (!existing) {
+    return false;
+  }
+  const current = backupTimestamp(existing);
+  if (current > base) {
+    json(res, 409, { error: 'Cloud backup is newer', timestamp: current });
+    return true;
+  }
+  return false;
+}
+
 async function putBackup(body) {
   const url = `${BLOB_API}/?${new URLSearchParams({ pathname: BLOB_PATH })}`;
   const response = await fetch(url, {
@@ -161,6 +193,9 @@ async function handler(req, res) {
         return;
       }
       JSON.parse(body);
+      if (await rejectIfCloudIsNewer(req, res)) {
+        return;
+      }
       await putBackup(body);
       json(res, 200, { ok: true, savedAt: Date.now() });
       return;

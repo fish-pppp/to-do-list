@@ -209,6 +209,123 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
   }
 });
 
+test('PUT with an older base timestamp does not overwrite a newer cloud backup', async () => {
+  const { handler, restore } = loadHandler({
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
+    SYNC_KEY: 'secret-key',
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+  const stored = JSON.stringify({ timestamp: 50, data: { task: { ids: ['cloud'] } } });
+  const stale = JSON.stringify({ timestamp: 10, data: { task: { ids: ['local'] } } });
+
+  global.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || 'GET' });
+    const href = String(url);
+    if (href.includes('prefix=sp-tasks-backup.json')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            blobs: [
+              {
+                pathname: 'sp-tasks-backup.json',
+                url: 'https://store.private.blob.vercel-storage.com/sp-tasks-backup.json',
+              },
+            ],
+          }),
+      };
+    }
+    if (href.includes('store.private.blob.vercel-storage.com')) {
+      return { ok: true, status: 200, text: async () => stored };
+    }
+    return { ok: false, status: 500, text: async () => 'unexpected' };
+  };
+
+  try {
+    const res = mockRes();
+    await invoke(
+      handler,
+      mockReq('PUT', '/api/backup', {
+        headers: { 'x-sp-sync-key': 'secret-key', 'x-sp-base-timestamp': '10' },
+        body: stale,
+      }),
+      res,
+    );
+    assert.equal(res.statusCode, 409);
+    assert.equal(JSON.parse(res.body).timestamp, 50);
+    assert.equal(
+      calls.some((call) => call.method === 'PUT'),
+      false,
+    );
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test('PUT with the current base timestamp is allowed to overwrite', async () => {
+  const { handler, restore } = loadHandler({
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
+    SYNC_KEY: 'secret-key',
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+  const stored = JSON.stringify({ timestamp: 50, data: { task: { ids: ['cloud'] } } });
+  const next = JSON.stringify({ timestamp: 60, data: { task: { ids: ['edited'] } } });
+
+  global.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), method: init.method || 'GET' });
+    const href = String(url);
+    if (
+      href.includes('pathname=sp-tasks-backup.json') &&
+      (init.method || 'GET') === 'PUT'
+    ) {
+      return { ok: true, status: 200, text: async () => '{}' };
+    }
+    if (href.includes('prefix=sp-tasks-backup.json')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            blobs: [
+              {
+                pathname: 'sp-tasks-backup.json',
+                url: 'https://store.private.blob.vercel-storage.com/sp-tasks-backup.json',
+              },
+            ],
+          }),
+      };
+    }
+    if (href.includes('store.private.blob.vercel-storage.com')) {
+      return { ok: true, status: 200, text: async () => stored };
+    }
+    return { ok: false, status: 500, text: async () => 'unexpected' };
+  };
+
+  try {
+    const res = mockRes();
+    await invoke(
+      handler,
+      mockReq('PUT', '/api/backup', {
+        headers: { 'x-sp-sync-key': 'secret-key', 'x-sp-base-timestamp': '50' },
+        body: next,
+      }),
+      res,
+    );
+    assert.equal(res.statusCode, 200);
+    assert.equal(
+      calls.some((call) => call.method === 'PUT'),
+      true,
+    );
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
 test('GET returns 404 when no backup exists yet', async () => {
   const { handler, restore } = loadHandler({
     BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
