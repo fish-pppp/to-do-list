@@ -23,12 +23,8 @@ const STATUS_PATH = '/api/backup?status=1';
 const BACKUP_PATH = '/api/backup';
 const NUDGE_SESSION_KEY = 'sp-cloud-backup-nudge';
 
-const cloudRequestHeaders = (
-  syncKey: string,
-  baseTimestamp?: number,
-): Record<string, string> => {
+const cloudRequestHeaders = (baseTimestamp?: number): Record<string, string> => {
   const headers: Record<string, string> = {};
-  headers['x-sp-sync-key'] = syncKey;
   if (baseTimestamp !== undefined) {
     headers['Content-Type'] = 'application/json';
     headers['x-sp-base-timestamp'] = String(baseTimestamp);
@@ -38,7 +34,6 @@ const cloudRequestHeaders = (
 
 type RemoteBackup =
   | { kind: 'missing' }
-  | { kind: 'unauthorized' }
   | { kind: 'not-configured' }
   | { kind: 'error' }
   | {
@@ -68,31 +63,6 @@ export class WebCloudBackupService {
 
   get isAvailable(): boolean {
     return IS_WEB_BROWSER;
-  }
-
-  getSyncKey(): string {
-    return localStorage.getItem(LS.CLOUD_SYNC_KEY) || '';
-  }
-
-  setSyncKey(key: string): void {
-    const trimmed = key.trim();
-    if (trimmed) {
-      localStorage.setItem(LS.CLOUD_SYNC_KEY, trimmed);
-    } else {
-      localStorage.removeItem(LS.CLOUD_SYNC_KEY);
-    }
-    if (!trimmed || !this._started) {
-      return;
-    }
-    if (!this._watching) {
-      void this._bootstrap();
-      return;
-    }
-    void this._reconcile({
-      forcePush: false,
-      announcePush: false,
-      announceError: true,
-    });
   }
 
   async isConfigured(): Promise<boolean> {
@@ -126,22 +96,12 @@ export class WebCloudBackupService {
   }
 
   async restoreFromCloud(force: boolean): Promise<boolean> {
-    if (!this.getSyncKey()) {
-      this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_NEED_KEY });
-      return false;
-    }
-
     try {
       const response = await fetch(BACKUP_PATH, {
-        headers: cloudRequestHeaders(this.getSyncKey()),
         cache: 'no-store',
       });
       if (response.status === 404) {
         this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_EMPTY });
-        return false;
-      }
-      if (response.status === 401) {
-        this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_BAD_KEY });
         return false;
       }
       if (!response.ok) {
@@ -182,14 +142,6 @@ export class WebCloudBackupService {
       this._nudgeOnce({
         ico: 'cloud_off',
         msg: T.FILE_IMEX.CLOUD_NOT_CONFIGURED,
-      });
-      return;
-    }
-
-    if (!this.getSyncKey()) {
-      this._nudgeOnce({
-        ico: 'vpn_key',
-        msg: T.FILE_IMEX.CLOUD_NEED_KEY,
       });
       return;
     }
@@ -270,20 +222,10 @@ export class WebCloudBackupService {
     if (this._busy) {
       return false;
     }
-    if (!this.getSyncKey()) {
-      if (opts.announceError) {
-        this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_NEED_KEY });
-      }
-      return false;
-    }
 
     this._busy = true;
     try {
       const remote = await this._fetchRemote();
-      if (remote.kind === 'unauthorized') {
-        this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_BAD_KEY });
-        return false;
-      }
       if (remote.kind === 'not-configured') {
         if (opts.announceError) {
           this._snackService.open({
@@ -355,7 +297,7 @@ export class WebCloudBackupService {
     const backup = await this._backupService.loadCompleteBackup(true);
     const response = await fetch(BACKUP_PATH, {
       method: 'PUT',
-      headers: cloudRequestHeaders(this.getSyncKey(), this._syncedAt()),
+      headers: cloudRequestHeaders(this._syncedAt()),
       body: JSON.stringify(backup),
     });
     if (response.status === 409) {
@@ -363,10 +305,6 @@ export class WebCloudBackupService {
       if (newer.kind === 'backup' && newer.hasData) {
         await this._importRemote(newer.backup);
       }
-      return false;
-    }
-    if (response.status === 401) {
-      this._snackService.open({ type: 'ERROR', msg: T.FILE_IMEX.CLOUD_BAD_KEY });
       return false;
     }
     if (response.status === 503) {
@@ -391,14 +329,10 @@ export class WebCloudBackupService {
 
   private async _fetchRemote(): Promise<RemoteBackup> {
     const response = await fetch(BACKUP_PATH, {
-      headers: cloudRequestHeaders(this.getSyncKey()),
       cache: 'no-store',
     });
     if (response.status === 404) {
       return { kind: 'missing' };
-    }
-    if (response.status === 401) {
-      return { kind: 'unauthorized' };
     }
     if (response.status === 503) {
       return { kind: 'not-configured' };

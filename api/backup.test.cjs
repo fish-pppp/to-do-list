@@ -98,24 +98,33 @@ test('GET ?status=1 reports configured when both env vars are set', async () => 
   }
 });
 
-test('rejects missing or wrong sync key', async () => {
+test('serves the backup without a client sync key and never returns SYNC_KEY', async () => {
   const { handler, restore } = loadHandler({
     BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
     SYNC_KEY: 'secret-key',
   });
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify({ blobs: [] }),
+  });
   try {
     const missing = mockRes();
     await invoke(handler, mockReq('GET', '/api/backup'), missing);
-    assert.equal(missing.statusCode, 401);
+    assert.equal(missing.statusCode, 404);
+    assert.equal(missing.body.includes('secret-key'), false);
 
-    const wrong = mockRes();
+    const ignoredHeader = mockRes();
     await invoke(
       handler,
       mockReq('GET', '/api/backup', { headers: { 'x-sp-sync-key': 'nope' } }),
-      wrong,
+      ignoredHeader,
     );
-    assert.equal(wrong.statusCode, 401);
+    assert.equal(ignoredHeader.statusCode, 404);
+    assert.equal(ignoredHeader.body.includes('secret-key'), false);
   } finally {
+    global.fetch = originalFetch;
     restore();
   }
 });
@@ -181,7 +190,6 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
     await invoke(
       handler,
       mockReq('PUT', '/api/backup', {
-        headers: { 'x-sp-sync-key': 'secret-key' },
         body: backup,
       }),
       putRes,
@@ -198,7 +206,7 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
     const getRes = mockRes();
     await invoke(
       handler,
-      mockReq('GET', '/api/backup', { headers: { 'x-sp-sync-key': 'secret-key' } }),
+      mockReq('GET', '/api/backup'),
       getRes,
     );
     assert.equal(getRes.statusCode, 200);
@@ -248,7 +256,7 @@ test('PUT with an older base timestamp does not overwrite a newer cloud backup',
     await invoke(
       handler,
       mockReq('PUT', '/api/backup', {
-        headers: { 'x-sp-sync-key': 'secret-key', 'x-sp-base-timestamp': '10' },
+        headers: { 'x-sp-base-timestamp': '10' },
         body: stale,
       }),
       res,
@@ -310,7 +318,7 @@ test('PUT with the current base timestamp is allowed to overwrite', async () => 
     await invoke(
       handler,
       mockReq('PUT', '/api/backup', {
-        headers: { 'x-sp-sync-key': 'secret-key', 'x-sp-base-timestamp': '50' },
+        headers: { 'x-sp-base-timestamp': '50' },
         body: next,
       }),
       res,
@@ -342,7 +350,7 @@ test('GET returns 404 when no backup exists yet', async () => {
     const res = mockRes();
     await invoke(
       handler,
-      mockReq('GET', '/api/backup', { headers: { 'x-sp-sync-key': 'secret-key' } }),
+      mockReq('GET', '/api/backup'),
       res,
     );
     assert.equal(res.statusCode, 404);

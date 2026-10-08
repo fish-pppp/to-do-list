@@ -1,5 +1,3 @@
-const { timingSafeEqual } = require('crypto');
-
 const BLOB_API = 'https://vercel.com/api/blob';
 const BLOB_PATH = 'sp-tasks-backup.json';
 const API_VERSION = '12';
@@ -20,31 +18,8 @@ function readBody(req) {
   });
 }
 
-function keysEqual(a, b) {
-  if (
-    typeof a !== 'string' ||
-    typeof b !== 'string' ||
-    a.length === 0 ||
-    b.length === 0
-  ) {
-    return false;
-  }
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) {
-    return false;
-  }
-  return timingSafeEqual(left, right);
-}
-
 function isConfigured() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.SYNC_KEY);
-}
-
-function authorize(req) {
-  const header = req.headers['x-sp-sync-key'];
-  const key = Array.isArray(header) ? header[0] : header;
-  return keysEqual(key || '', process.env.SYNC_KEY || '');
 }
 
 function blobHeaders(extra) {
@@ -164,11 +139,6 @@ async function handler(req, res) {
       error:
         'Cloud backup is not configured. In Vercel: create a Blob store for this project and set SYNC_KEY.',
     });
-    return;
-  }
-
-  if (!authorize(req)) {
-    json(res, 401, { error: 'Invalid sync key' });
     return;
   }
 

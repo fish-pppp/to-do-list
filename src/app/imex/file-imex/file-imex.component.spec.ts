@@ -67,12 +67,9 @@ describe('FileImexComponent', () => {
     pluginServiceSpy.isInitialized.and.returnValue(true);
     pluginServiceSpy.activatePlugin.and.returnValue(Promise.resolve(null));
     const webCloudBackupSpy = jasmine.createSpyObj('WebCloudBackupService', [
-      'getSyncKey',
-      'setSyncKey',
       'uploadIfLocalHasData',
       'restoreFromCloud',
     ]);
-    webCloudBackupSpy.getSyncKey.and.returnValue('');
     webCloudBackupSpy.uploadIfLocalHasData.and.returnValue(Promise.resolve(true));
     webCloudBackupSpy.restoreFromCloud.and.returnValue(Promise.resolve(true));
     Object.defineProperty(webCloudBackupSpy, 'isAvailable', { value: true });
@@ -437,27 +434,23 @@ describe('FileImexComponent', () => {
   });
 
   describe('cloud backup', () => {
-    it('saves the sync key and uploads', async () => {
+    it('uploads without asking for a sync key', async () => {
       const webCloudBackup = TestBed.inject(
         WebCloudBackupService,
       ) as jasmine.SpyObj<WebCloudBackupService>;
-      component.cloudSyncKey = ' my-key ';
 
       await component.uploadToCloud();
 
-      expect(webCloudBackup.setSyncKey).toHaveBeenCalledWith(' my-key ');
       expect(webCloudBackup.uploadIfLocalHasData).toHaveBeenCalledWith(true);
     });
 
-    it('saves the sync key and restores', async () => {
+    it('restores without asking for a sync key', async () => {
       const webCloudBackup = TestBed.inject(
         WebCloudBackupService,
       ) as jasmine.SpyObj<WebCloudBackupService>;
-      component.cloudSyncKey = 'my-key';
 
       await component.restoreFromCloud();
 
-      expect(webCloudBackup.setSyncKey).toHaveBeenCalledWith('my-key');
       expect(webCloudBackup.restoreFromCloud).toHaveBeenCalledWith(false);
     });
   });

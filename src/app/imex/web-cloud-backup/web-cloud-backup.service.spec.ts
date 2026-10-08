@@ -88,14 +88,7 @@ describe('WebCloudBackupService', () => {
     localStorage.removeItem(LS.CLOUD_DIRTY);
   });
 
-  it('refuses to upload without a saved sync key', async () => {
-    const ok = await service.uploadIfLocalHasData(true);
-    expect(ok).toBeFalse();
-    expect(snackService.open).toHaveBeenCalled();
-  });
-
-  it('uploads the complete backup with the sync key header', async () => {
-    service.setSyncKey('abc');
+  it('uploads the complete backup without a stored sync key', async () => {
     spyOn(window, 'fetch').and.callFake(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         if ((init?.method || 'GET') === 'GET') {
@@ -118,19 +111,16 @@ describe('WebCloudBackupService', () => {
     const ok = await service.uploadIfLocalHasData(true);
 
     expect(ok).toBeTrue();
-    expect(window.fetch).toHaveBeenCalledWith(
-      '/api/backup',
-      jasmine.objectContaining({
-        method: 'PUT',
-        headers: jasmine.objectContaining(
-          headerBag(['x-sp-sync-key', 'abc'], ['x-sp-base-timestamp', '0']),
-        ),
-      }),
-    );
+    expect(localStorage.getItem(LS.CLOUD_SYNC_KEY)).toBeNull();
+    const putCall = (window.fetch as jasmine.Spy).calls
+      .allArgs()
+      .find((args) => args[1] && args[1].method === 'PUT');
+    expect(putCall).toBeTruthy();
+    expect(putCall?.[1].headers['x-sp-sync-key']).toBeUndefined();
+    expect(putCall?.[1].headers['x-sp-base-timestamp']).toBe('0');
   });
 
   it('auto-restores when local state is empty and a remote backup exists', async () => {
-    service.setSyncKey('abc');
     snapshotService.getAllSyncModelDataFromStore.and.returnValue(
       emptySnapshot as unknown as ReturnType<
         StateSnapshotService['getAllSyncModelDataFromStore']
@@ -173,7 +163,6 @@ describe('WebCloudBackupService', () => {
   });
 
   it('pulls a newer cloud backup even when this browser already has tasks', async () => {
-    service.setSyncKey('abc');
     localStorage.setItem(LS.CLOUD_SYNCED_AT, '10');
     const remote = {
       timestamp: 50,
@@ -200,7 +189,6 @@ describe('WebCloudBackupService', () => {
   });
 
   it('does not upload local tasks over a cloud backup this browser already has', async () => {
-    service.setSyncKey('abc');
     localStorage.setItem(LS.CLOUD_SYNCED_AT, '50');
     const remote = {
       timestamp: 50,
@@ -220,7 +208,6 @@ describe('WebCloudBackupService', () => {
   });
 
   it('uploads local edits when the cloud copy is not newer', async () => {
-    service.setSyncKey('abc');
     localStorage.setItem(LS.CLOUD_SYNCED_AT, '50');
     localStorage.setItem(LS.CLOUD_DIRTY, '1');
     const remote = {
@@ -245,7 +232,6 @@ describe('WebCloudBackupService', () => {
   });
 
   it('pulls instead of uploading when the cloud copy became newer', async () => {
-    service.setSyncKey('abc');
     localStorage.setItem(LS.CLOUD_SYNCED_AT, '10');
     localStorage.setItem(LS.CLOUD_DIRTY, '1');
     const remote = {

@@ -71,12 +71,9 @@ export class FileImexComponent implements OnInit {
 
   readonly fileInputRef = viewChild<ElementRef>('fileInput');
   T: typeof T = T;
-  cloudSyncKey = '';
   readonly showCloudBackup = this._webCloudBackup.isAvailable;
 
   ngOnInit(): void {
-    this.cloudSyncKey = this._webCloudBackup.getSyncKey();
-
     this._activatedRoute.queryParams.pipe(first()).subscribe((params) => {
       const importUrlParam = params['importFromUrl'];
       if (importUrlParam) {
@@ -308,18 +305,11 @@ export class FileImexComponent implements OnInit {
     }
   }
 
-  saveCloudSyncKey(): void {
-    this._webCloudBackup.setSyncKey(this.cloudSyncKey);
-    this._snackService.open({ type: 'SUCCESS', msg: T.FILE_IMEX.CLOUD_KEY_SAVED });
-  }
-
   async uploadToCloud(): Promise<void> {
-    this.saveCloudSyncKey();
     await this._webCloudBackup.uploadIfLocalHasData(true);
   }
 
   async restoreFromCloud(): Promise<void> {
-    this.saveCloudSyncKey();
     await this._webCloudBackup.restoreFromCloud(false);
   }
 
