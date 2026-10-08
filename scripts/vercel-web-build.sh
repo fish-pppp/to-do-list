@@ -93,8 +93,28 @@ cat > "${out}/config.json" <<'EOF'
       "continue": true
     },
     {
+      "src": "/",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
+      "continue": true
+    },
+    {
       "src": "/ngsw.json",
-      "headers": { "cache-control": "no-cache" },
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
+      "continue": true
+    },
+    {
+      "src": "/ngsw-worker.js",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
+      "continue": true
+    },
+    {
+      "src": "/safety-worker.js",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
+      "continue": true
+    },
+    {
+      "src": "/worker-basic.min.js",
+      "headers": { "cache-control": "no-cache, no-store, must-revalidate" },
       "continue": true
     },
     {
