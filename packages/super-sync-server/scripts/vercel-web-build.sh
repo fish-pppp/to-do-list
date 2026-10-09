@@ -76,7 +76,7 @@ cp -a dist/browser/. "${out}/static/"
 cp "${handler}" "${out}/functions/api/backup.func/index.js"
 cat > "${out}/functions/api/backup.func/.vc-config.json" <<'EOF'
 {
-  "runtime": "nodejs20.x",
+  "runtime": "nodejs22.x",
   "handler": "index.js",
   "launcherType": "Nodejs",
   "shouldAddHelpers": true,

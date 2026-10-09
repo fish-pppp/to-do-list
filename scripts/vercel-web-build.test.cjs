@@ -62,9 +62,25 @@ test('build script extracts when cwd is the SuperSync package', () => {
     ),
   );
   assert.ok(fs.existsSync(path.join(tmp, '.vercel', 'output', 'static', 'index.html')));
+  const vcConfig = JSON.parse(
+    fs.readFileSync(
+      path.join(tmp, '.vercel', 'output', 'functions', 'api', 'backup.func', '.vc-config.json'),
+      'utf8',
+    ),
+  );
+  assert.equal(vcConfig.runtime, 'nodejs22.x');
 });
 
 test('repo-root and SuperSync package scripts both exist', () => {
   assert.ok(fs.existsSync(rootScript));
   assert.ok(fs.existsSync(packageScript));
+});
+
+test('both build scripts request a current Node runtime', () => {
+  const root = fs.readFileSync(rootScript, 'utf8');
+  const packaged = fs.readFileSync(packageScript, 'utf8');
+  assert.match(root, /"runtime": "nodejs22\.x"/);
+  assert.match(packaged, /"runtime": "nodejs22\.x"/);
+  assert.doesNotMatch(root, /nodejs20\.x/);
+  assert.doesNotMatch(packaged, /nodejs20\.x/);
 });
