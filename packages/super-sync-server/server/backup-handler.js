@@ -1,5 +1,3 @@
-const { timingSafeEqual } = require('crypto');
-
 const BLOB_API = 'https://vercel.com/api/blob';
 const BLOB_PATH = 'sp-tasks-backup.json';
 const API_VERSION = '12';
@@ -20,31 +18,8 @@ function readBody(req) {
   });
 }
 
-function keysEqual(a, b) {
-  if (
-    typeof a !== 'string' ||
-    typeof b !== 'string' ||
-    a.length === 0 ||
-    b.length === 0
-  ) {
-    return false;
-  }
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) {
-    return false;
-  }
-  return timingSafeEqual(left, right);
-}
-
 function isConfigured() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN && process.env.SYNC_KEY);
-}
-
-function authorize(req) {
-  const header = req.headers['x-sp-sync-key'];
-  const key = Array.isArray(header) ? header[0] : header;
-  return keysEqual(key || '', process.env.SYNC_KEY || '');
 }
 
 function blobHeaders(extra) {
@@ -53,6 +28,38 @@ function blobHeaders(extra) {
     'x-api-version': API_VERSION,
     ...extra,
   };
+}
+
+function backupTimestamp(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed.timestamp === 'number' ? parsed.timestamp : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function rejectIfCloudIsNewer(req, res) {
+  const raw = req.headers['x-sp-base-timestamp'];
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  if (header === undefined || header === '') {
+    return false;
+  }
+  const base = Number(header);
+  if (!Number.isFinite(base)) {
+    json(res, 400, { error: 'Invalid base timestamp' });
+    return true;
+  }
+  const existing = await getBackup();
+  if (!existing) {
+    return false;
+  }
+  const current = backupTimestamp(existing);
+  if (current > base) {
+    json(res, 409, { error: 'Cloud backup is newer', timestamp: current });
+    return true;
+  }
+  return false;
 }
 
 async function putBackup(body) {
@@ -135,11 +142,6 @@ async function handler(req, res) {
     return;
   }
 
-  if (!authorize(req)) {
-    json(res, 401, { error: 'Invalid sync key' });
-    return;
-  }
-
   try {
     if (req.method === 'GET') {
       const backup = await getBackup();
@@ -161,6 +163,9 @@ async function handler(req, res) {
         return;
       }
       JSON.parse(body);
+      if (await rejectIfCloudIsNewer(req, res)) {
+        return;
+      }
       await putBackup(body);
       json(res, 200, { ok: true, savedAt: Date.now() });
       return;

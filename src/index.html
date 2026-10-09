@@ -112,6 +112,20 @@
           script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:"
       http-equiv="Content-Security-Policy"
     />
+    <script>
+      // A new worker calls skipWaiting(). Reload once so this visit leaves the
+      // previous cache. The first install has no controller yet, so it does not reload.
+      if ('serviceWorker' in navigator) {
+        var hadServiceWorker = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!hadServiceWorker || window.__spServiceWorkerReloading) {
+            return;
+          }
+          window.__spServiceWorkerReloading = true;
+          window.location.reload();
+        });
+      }
+    </script>
     <base href="./" />
     <style type="text/css">
       html,

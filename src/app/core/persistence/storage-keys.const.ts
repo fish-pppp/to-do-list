@@ -29,6 +29,11 @@ export enum LS {
   // protected (#7901).
   LAST_LOCAL_BACKUP = 'SUP_LAST_LOCAL_BACKUP',
   CLOUD_SYNC_KEY = 'SUP_CLOUD_SYNC_KEY',
+  // Epoch ms of the cloud backup this browser last imported or uploaded.
+  CLOUD_SYNCED_AT = 'SUP_CLOUD_SYNCED_AT',
+  // Set when local edits have not been uploaded yet. Cleared after a successful
+  // upload or after a newer cloud backup is imported.
+  CLOUD_DIRTY = 'SUP_CLOUD_DIRTY',
   LOCAL_UI_HELPER = 'SUP_UI_HELPER',
 
   ACTION_LOG = 'SUP_ACTION_LOG',

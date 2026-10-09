@@ -1,8 +1,7 @@
 import { fakeAsync, flushMicrotasks, TestBed, tick } from '@angular/core/testing';
 import { InitialPwaUpdateCheckService } from './initial-pwa-update-check.service';
-import { SwUpdate } from '@angular/service-worker';
-import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { SwUpdate, VersionEvent } from '@angular/service-worker';
+import { EMPTY, firstValueFrom, Subject } from 'rxjs';
 import { Log } from './log';
 
 const INITIAL_PWA_UPDATE_CHECK_TIMEOUT_MS = 8000;
@@ -84,38 +83,73 @@ describe('InitialPwaUpdateCheckService', () => {
     expect(result).toBeUndefined();
     expect(swUpdate.checkForUpdate).not.toHaveBeenCalled();
   });
+
+  it('activates and reloads when a new build is ready', async () => {
+    const { service, swUpdate, reloadPage } = setup(Promise.resolve(true));
+
+    await new Promise<void>((resolve, reject) => {
+      service.afterInitialUpdateCheck$.subscribe({
+        complete: () => resolve(),
+        error: reject,
+      });
+    });
+
+    expect(swUpdate.activateUpdate).toHaveBeenCalled();
+    expect(reloadPage).toHaveBeenCalled();
+  });
+
+  it('reloads when the new build finishes after startup', async () => {
+    const versions = new Subject<VersionEvent>();
+    const { swUpdate, reloadPage } = setup(Promise.resolve(false), true, versions);
+
+    versions.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'old' },
+      latestVersion: { hash: 'new' },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(swUpdate.activateUpdate).toHaveBeenCalled();
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+  });
 });
 
 const setup = (
   checkForUpdateResult: Promise<boolean>,
   isEnabled: boolean = true,
+  versionUpdates: Subject<VersionEvent> | null = null,
 ): {
   service: InitialPwaUpdateCheckService;
   swUpdate: jasmine.SpyObj<SwUpdate>;
+  reloadPage: jasmine.Spy;
 } => {
-  const swUpdate = jasmine.createSpyObj<SwUpdate>('SwUpdate', ['checkForUpdate']);
+  const swUpdate = jasmine.createSpyObj<SwUpdate>('SwUpdate', [
+    'checkForUpdate',
+    'activateUpdate',
+  ]);
   Object.defineProperty(swUpdate, 'isEnabled', {
     value: isEnabled,
     configurable: true,
   });
+  Object.defineProperty(swUpdate, 'versionUpdates', {
+    value: versionUpdates ?? EMPTY,
+  });
   swUpdate.checkForUpdate.and.returnValue(checkForUpdateResult);
-
-  const translateService = jasmine.createSpyObj<TranslateService>('TranslateService', [
-    'instant',
-  ]);
-  translateService.instant.and.returnValue('Update?');
+  swUpdate.activateUpdate.and.returnValue(Promise.resolve(true));
 
   TestBed.configureTestingModule({
-    providers: [
-      InitialPwaUpdateCheckService,
-      { provide: SwUpdate, useValue: swUpdate },
-      { provide: TranslateService, useValue: translateService },
-    ],
+    providers: [InitialPwaUpdateCheckService, { provide: SwUpdate, useValue: swUpdate }],
   });
 
+  const service = TestBed.inject(InitialPwaUpdateCheckService);
+  const reloadPage = jasmine.createSpy('reloadPage');
+  (service as unknown as { _reloadPage: () => void })._reloadPage = reloadPage;
+
   return {
-    service: TestBed.inject(InitialPwaUpdateCheckService),
+    service,
     swUpdate,
+    reloadPage,
   };
 };
 
