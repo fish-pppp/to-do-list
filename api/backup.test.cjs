@@ -217,19 +217,47 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
   }
 });
 
-test('PUT with an older base timestamp does not overwrite a newer cloud backup', async () => {
+test('PUT with an older base timestamp unions tasks and asks the client to reload', async () => {
   const { handler, restore } = loadHandler({
     BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
     SYNC_KEY: 'secret-key',
   });
   const originalFetch = global.fetch;
   const calls = [];
-  const stored = JSON.stringify({ timestamp: 50, data: { task: { ids: ['cloud'] } } });
-  const stale = JSON.stringify({ timestamp: 10, data: { task: { ids: ['local'] } } });
+  const stored = JSON.stringify({
+    timestamp: 50,
+    data: {
+      task: { ids: ['cloud'], entities: { cloud: { id: 'cloud', title: 'Cloud' } } },
+      project: {
+        ids: ['INBOX_PROJECT'],
+        entities: { INBOX_PROJECT: { id: 'INBOX_PROJECT', taskIds: ['cloud'] } },
+      },
+    },
+  });
+  const stale = JSON.stringify({
+    timestamp: 10,
+    data: {
+      task: { ids: ['local'], entities: { local: { id: 'local', title: 'Local' } } },
+      project: {
+        ids: ['INBOX_PROJECT'],
+        entities: { INBOX_PROJECT: { id: 'INBOX_PROJECT', taskIds: ['local'] } },
+      },
+    },
+  });
 
   global.fetch = async (url, init = {}) => {
-    calls.push({ url: String(url), method: init.method || 'GET' });
+    calls.push({
+      url: String(url),
+      method: init.method || 'GET',
+      body: init.body,
+    });
     const href = String(url);
+    if (
+      href.includes('pathname=sp-tasks-backup.json') &&
+      (init.method || 'GET') === 'PUT'
+    ) {
+      return { ok: true, status: 200, text: async () => '{}' };
+    }
     if (href.includes('prefix=sp-tasks-backup.json')) {
       return {
         ok: true,
@@ -256,17 +284,171 @@ test('PUT with an older base timestamp does not overwrite a newer cloud backup',
     await invoke(
       handler,
       mockReq('PUT', '/api/backup', {
-        headers: { 'x-sp-base-timestamp': '10' },
+        headers: { 'x-sp-base-timestamp': '0' },
         body: stale,
       }),
       res,
     );
     assert.equal(res.statusCode, 409);
-    assert.equal(JSON.parse(res.body).timestamp, 50);
-    assert.equal(
-      calls.some((call) => call.method === 'PUT'),
-      false,
+    assert.ok(JSON.parse(res.body).timestamp > 50);
+    const putCall = calls.find((call) => call.method === 'PUT');
+    assert.ok(putCall);
+    const merged = JSON.parse(putCall.body);
+    assert.deepEqual(merged.data.task.ids, ['cloud', 'local']);
+    assert.deepEqual(merged.data.project.entities.INBOX_PROJECT.taskIds, [
+      'cloud',
+      'local',
+    ]);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test('PUT replaces an empty newer stub so the first device can upload', async () => {
+  const { handler, restore } = loadHandler({
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
+    SYNC_KEY: 'secret-key',
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+  const stored = JSON.stringify({
+    timestamp: 1,
+    lastUpdate: 1,
+    crossModelVersion: 1,
+    data: { task: { ids: [] } },
+  });
+  const incoming = JSON.stringify({
+    timestamp: 20,
+    data: {
+      task: {
+        ids: ['from-phone'],
+        entities: { 'from-phone': { id: 'from-phone' } },
+      },
+    },
+  });
+
+  global.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || 'GET',
+      body: init.body,
+    });
+    const href = String(url);
+    if (
+      href.includes('pathname=sp-tasks-backup.json') &&
+      (init.method || 'GET') === 'PUT'
+    ) {
+      return { ok: true, status: 200, text: async () => '{}' };
+    }
+    if (href.includes('prefix=sp-tasks-backup.json')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            blobs: [
+              {
+                pathname: 'sp-tasks-backup.json',
+                url: 'https://store.private.blob.vercel-storage.com/sp-tasks-backup.json',
+              },
+            ],
+          }),
+      };
+    }
+    if (href.includes('store.private.blob.vercel-storage.com')) {
+      return { ok: true, status: 200, text: async () => stored };
+    }
+    return { ok: false, status: 500, text: async () => 'unexpected' };
+  };
+
+  try {
+    const res = mockRes();
+    await invoke(
+      handler,
+      mockReq('PUT', '/api/backup', {
+        headers: { 'x-sp-base-timestamp': '0' },
+        body: incoming,
+      }),
+      res,
     );
+    assert.equal(res.statusCode, 200);
+    const putCall = calls.find((call) => call.method === 'PUT');
+    assert.equal(putCall.body, incoming);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
+test('PUT does not resurrect a deleted task when the client already has the cloud copy', async () => {
+  const { handler, restore } = loadHandler({
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
+    SYNC_KEY: 'secret-key',
+  });
+  const originalFetch = global.fetch;
+  const calls = [];
+  const stored = JSON.stringify({
+    timestamp: 50,
+    data: {
+      task: {
+        ids: ['keep', 'gone'],
+        entities: { keep: { id: 'keep' }, gone: { id: 'gone' } },
+      },
+    },
+  });
+  const next = JSON.stringify({
+    timestamp: 60,
+    data: { task: { ids: ['keep'], entities: { keep: { id: 'keep' } } } },
+  });
+
+  global.fetch = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method || 'GET',
+      body: init.body,
+    });
+    const href = String(url);
+    if (
+      href.includes('pathname=sp-tasks-backup.json') &&
+      (init.method || 'GET') === 'PUT'
+    ) {
+      return { ok: true, status: 200, text: async () => '{}' };
+    }
+    if (href.includes('prefix=sp-tasks-backup.json')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            blobs: [
+              {
+                pathname: 'sp-tasks-backup.json',
+                url: 'https://store.private.blob.vercel-storage.com/sp-tasks-backup.json',
+              },
+            ],
+          }),
+      };
+    }
+    if (href.includes('store.private.blob.vercel-storage.com')) {
+      return { ok: true, status: 200, text: async () => stored };
+    }
+    return { ok: false, status: 500, text: async () => 'unexpected' };
+  };
+
+  try {
+    const res = mockRes();
+    await invoke(
+      handler,
+      mockReq('PUT', '/api/backup', {
+        headers: { 'x-sp-base-timestamp': '50' },
+        body: next,
+      }),
+      res,
+    );
+    assert.equal(res.statusCode, 200);
+    const putCall = calls.find((call) => call.method === 'PUT');
+    assert.equal(putCall.body, next);
   } finally {
     global.fetch = originalFetch;
     restore();
@@ -332,6 +514,57 @@ test('PUT with the current base timestamp is allowed to overwrite', async () => 
     global.fetch = originalFetch;
     restore();
   }
+});
+
+test('empty stubs are not user data, archived tasks are', () => {
+  const { backupHasUserData, mergeBackupTexts } = require('./backup.js');
+  assert.equal(
+    backupHasUserData(
+      JSON.stringify({
+        timestamp: 1,
+        data: { task: { ids: [] } },
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    backupHasUserData(
+      JSON.stringify({
+        data: {
+          task: { ids: [], entities: {} },
+          project: { ids: ['INBOX_PROJECT'], entities: {} },
+          tag: { ids: ['TODAY'], entities: {} },
+          archiveYoung: { task: { ids: ['archived'], entities: {} } },
+        },
+      }),
+    ),
+    true,
+  );
+
+  const merged = mergeBackupTexts(
+    JSON.stringify({
+      timestamp: 5,
+      crossModelVersion: 4.5,
+      data: {
+        planner: { days: { '2026-10-09': ['cloud'] } },
+        archiveYoung: {
+          task: { ids: ['old'], entities: { old: { id: 'old', title: 'Old' } } },
+        },
+      },
+    }),
+    JSON.stringify({
+      timestamp: 9,
+      crossModelVersion: 4.5,
+      data: {
+        planner: { days: { '2026-10-09': ['phone'] } },
+        archiveYoung: {
+          task: { ids: ['new'], entities: { new: { id: 'new', title: 'New' } } },
+        },
+      },
+    }),
+  );
+  assert.deepEqual(merged.data.planner.days['2026-10-09'], ['phone', 'cloud']);
+  assert.deepEqual(merged.data.archiveYoung.task.ids, ['new', 'old']);
 });
 
 test('GET returns 404 when no backup exists yet', async () => {

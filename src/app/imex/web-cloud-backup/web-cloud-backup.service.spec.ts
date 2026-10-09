@@ -286,6 +286,18 @@ const cloudFetch =
   };
 
 describe('decideCloudSyncAction', () => {
+  it('uploads never-synced local tasks so they can be merged into the cloud copy', () => {
+    expect(
+      decideCloudSyncAction({
+        remoteTimestamp: 20,
+        remoteHasData: true,
+        localHasData: true,
+        syncedAt: 0,
+        dirty: false,
+      }),
+    ).toBe('push');
+  });
+
   it('pulls when the cloud timestamp is newer, even if local data exists', () => {
     expect(
       decideCloudSyncAction({
