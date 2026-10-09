@@ -15,7 +15,10 @@ import { confirmDialog } from '../../util/native-dialogs';
 import { CompleteBackup } from '../../op-log/core/types/sync.types';
 import { AllModelConfig } from '../../op-log/model/model-config';
 import { IS_WEB_BROWSER } from '../../app.constants';
-import { decideCloudSyncAction } from './web-cloud-backup-sync.util';
+import {
+  decideCloudSyncAction,
+  hasTaskIdsMissingFromRemote,
+} from './web-cloud-backup-sync.util';
 
 const SAVE_DEBOUNCE_MS = 20_000;
 const PULL_INTERVAL_MS = 30_000;
@@ -242,15 +245,22 @@ export class WebCloudBackupService {
         return false;
       }
 
-      const localHasData = hasMeaningfulStateData(
-        this._stateSnapshotService.getAllSyncModelDataFromStore(),
-      );
+      const snapshot = this._stateSnapshotService.getAllSyncModelDataFromStore();
+      const localHasData = hasMeaningfulStateData(snapshot);
+      const remoteData =
+        remote.kind === 'backup'
+          ? 'data' in remote.backup
+            ? remote.backup.data
+            : remote.backup
+          : null;
       const decision = decideCloudSyncAction({
         remoteTimestamp: remote.kind === 'backup' ? remote.timestamp : null,
         remoteHasData: remote.kind === 'backup' && remote.hasData,
         localHasData,
         syncedAt: this._syncedAt(),
         dirty: this._isDirty(),
+        localHasTasksNotInRemote:
+          remote.kind === 'backup' && hasTaskIdsMissingFromRemote(snapshot, remoteData),
       });
 
       if (decision === 'pull' && remote.kind === 'backup') {
@@ -301,6 +311,11 @@ export class WebCloudBackupService {
       body: JSON.stringify(backup),
     });
     if (response.status === 409) {
+      const merged = await this._backupFromConflict(response);
+      if (merged) {
+        await this._importRemote(merged);
+        return false;
+      }
       const newer = await this._fetchRemote();
       if (newer.kind === 'backup' && newer.hasData) {
         await this._importRemote(newer.backup);
@@ -319,6 +334,25 @@ export class WebCloudBackupService {
       this._snackService.open({ type: 'SUCCESS', msg: T.FILE_IMEX.CLOUD_SAVED });
     }
     return true;
+  }
+
+  private async _backupFromConflict(
+    response: Response,
+  ): Promise<CompleteBackup<AllModelConfig> | null> {
+    try {
+      const payload = (await response.json()) as { backup?: unknown };
+      const backup = payload.backup;
+      if (
+        !backup ||
+        typeof backup !== 'object' ||
+        typeof (backup as { timestamp?: unknown }).timestamp !== 'number'
+      ) {
+        return null;
+      }
+      return backup as CompleteBackup<AllModelConfig>;
+    } catch {
+      return null;
+    }
   }
 
   private async _importRemote(backup: CompleteBackup<AllModelConfig>): Promise<void> {

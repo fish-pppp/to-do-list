@@ -11,7 +11,10 @@ import { LS } from '../../core/persistence/storage-keys.const';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { AllModelConfig } from '../../op-log/model/model-config';
 import { CompleteBackup } from '../../op-log/core/types/sync.types';
-import { decideCloudSyncAction } from './web-cloud-backup-sync.util';
+import {
+  decideCloudSyncAction,
+  hasTaskIdsMissingFromRemote,
+} from './web-cloud-backup-sync.util';
 
 const headerBag = (...pairs: [string, string][]): Record<string, string> => {
   const headers: Record<string, string> = {};
@@ -249,6 +252,91 @@ describe('WebCloudBackupService', () => {
     expect(backupService.loadCompleteBackup).not.toHaveBeenCalled();
     expect(localStorage.getItem(LS.CLOUD_SYNCED_AT)).toBe('80');
   });
+
+  it('uploads local tasks that the newer cloud copy does not have', async () => {
+    localStorage.setItem(LS.CLOUD_SYNCED_AT, '10');
+    const remote = {
+      timestamp: 80,
+      lastUpdate: 80,
+      crossModelVersion: 1,
+      data: {
+        task: { ids: ['other'] },
+        project: { ids: [INBOX_PROJECT.id] },
+        tag: { ids: [] },
+        note: { ids: [] },
+      },
+    };
+    spyOn(window, 'fetch').and.callFake(cloudFetch(remote));
+
+    await service.init();
+
+    expect(backupService.importCompleteBackup).not.toHaveBeenCalled();
+    expect(window.fetch).toHaveBeenCalledWith(
+      '/api/backup',
+      jasmine.objectContaining({ method: 'PUT' }),
+    );
+  });
+
+  it('imports the merged backup returned with a newer-cloud response', async () => {
+    const merged = {
+      timestamp: 90,
+      lastUpdate: 90,
+      crossModelVersion: 1,
+      data: {
+        task: { ids: ['t1', 'remote'] },
+        project: { ids: [INBOX_PROJECT.id] },
+        tag: { ids: [] },
+        note: { ids: [] },
+      },
+    };
+    spyOn(window, 'fetch').and.callFake(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method || 'GET';
+        if (url.includes('status=1')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ configured: true }),
+            text: async () => '',
+          } as Response;
+        }
+        if (method === 'PUT') {
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({
+              error: 'Cloud backup is newer',
+              timestamp: 90,
+              backup: merged,
+            }),
+            text: async () => '',
+          } as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            timestamp: 20,
+            lastUpdate: 20,
+            crossModelVersion: 1,
+            data: taskSnapshot,
+          }),
+          text: async () => '',
+        } as Response;
+      },
+    );
+
+    await service.init();
+
+    expect(backupService.importCompleteBackup).toHaveBeenCalledWith(
+      merged as unknown as CompleteBackup<AllModelConfig>,
+      true,
+      true,
+      true,
+    );
+    expect(localStorage.getItem(LS.CLOUD_SYNCED_AT)).toBe('90');
+  });
 });
 
 const cloudFetch =
@@ -286,6 +374,18 @@ const cloudFetch =
   };
 
 describe('decideCloudSyncAction', () => {
+  it('uploads never-synced local tasks so they can be merged into the cloud copy', () => {
+    expect(
+      decideCloudSyncAction({
+        remoteTimestamp: 20,
+        remoteHasData: true,
+        localHasData: true,
+        syncedAt: 0,
+        dirty: false,
+      }),
+    ).toBe('push');
+  });
+
   it('pulls when the cloud timestamp is newer, even if local data exists', () => {
     expect(
       decideCloudSyncAction({
@@ -308,6 +408,34 @@ describe('decideCloudSyncAction', () => {
         dirty: true,
       }),
     ).toBe('push');
+  });
+
+  it('uploads when this browser still has tasks the cloud copy does not', () => {
+    expect(
+      decideCloudSyncAction({
+        remoteTimestamp: 20,
+        remoteHasData: true,
+        localHasData: true,
+        syncedAt: 10,
+        dirty: false,
+        localHasTasksNotInRemote: true,
+      }),
+    ).toBe('push');
+  });
+
+  it('finds task ids that exist only on this device', () => {
+    expect(
+      hasTaskIdsMissingFromRemote(
+        { task: { ids: ['local', 'shared'] } },
+        { task: { ids: ['shared'] } },
+      ),
+    ).toBe(true);
+    expect(
+      hasTaskIdsMissingFromRemote(
+        { task: { ids: ['shared'] } },
+        { task: { ids: ['shared', 'cloud'] } },
+      ),
+    ).toBe(false);
   });
 
   it('stays idle when this browser already matches the cloud file', () => {

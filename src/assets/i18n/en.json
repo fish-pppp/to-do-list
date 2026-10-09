@@ -2359,7 +2359,7 @@
     "CLOUD_BAD_KEY": "The sync key is incorrect",
     "CLOUD_CONFIRM_RESTORE": "Restoring from the cloud will replace the tasks in this browser. Continue?",
     "CLOUD_EMPTY": "No cloud backup yet",
-    "CLOUD_HINT": "This site keeps one shared list and syncs it when you open the URL. No sync key is stored in the browser. This browser downloads the cloud list when that copy is newer, even if this browser already has tasks, and uploads after you edit. If two devices edit at the same time, the latest save is the one that remains.",
+    "CLOUD_HINT": "This site keeps one shared list and syncs it when you open the URL. No sync key is stored in the browser. A browser that has not synced yet adds its tasks to that list. After that, this browser downloads a newer cloud copy and uploads after you edit. If two devices edit at the same time, the latest save is the one that remains.",
     "CLOUD_KEY_LABEL": "Sync key (same as Vercel SYNC_KEY)",
     "CLOUD_KEY_SAVED": "Sync key saved",
     "CLOUD_NEED_KEY": "Save a sync key first",
