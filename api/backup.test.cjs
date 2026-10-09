@@ -204,11 +204,7 @@ test('PUT overwrites a fixed pathname and GET reads it back', async () => {
     assert.equal(putCall.headers['x-vercel-blob-access'], 'private');
 
     const getRes = mockRes();
-    await invoke(
-      handler,
-      mockReq('GET', '/api/backup'),
-      getRes,
-    );
+    await invoke(handler, mockReq('GET', '/api/backup'), getRes);
     assert.equal(getRes.statusCode, 200);
     assert.equal(getRes.body, backup);
   } finally {
@@ -290,7 +286,9 @@ test('PUT with an older base timestamp unions tasks and asks the client to reloa
       res,
     );
     assert.equal(res.statusCode, 409);
-    assert.ok(JSON.parse(res.body).timestamp > 50);
+    const conflict = JSON.parse(res.body);
+    assert.ok(conflict.timestamp > 50);
+    assert.deepEqual(conflict.backup.data.task.ids, ['cloud', 'local']);
     const putCall = calls.find((call) => call.method === 'PUT');
     assert.ok(putCall);
     const merged = JSON.parse(putCall.body);
@@ -567,6 +565,96 @@ test('empty stubs are not user data, archived tasks are', () => {
   assert.deepEqual(merged.data.archiveYoung.task.ids, ['new', 'old']);
 });
 
+test('PUT retries the merge when the blob etag has changed', async () => {
+  const { handler, restore } = loadHandler({
+    BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
+    SYNC_KEY: 'secret-key',
+  });
+  const originalFetch = global.fetch;
+  let stored = JSON.stringify({
+    timestamp: 50,
+    data: {
+      task: { ids: ['cloud'], entities: { cloud: { id: 'cloud' } } },
+    },
+  });
+  let etag = '"v1"';
+  let puts = 0;
+  const incoming = JSON.stringify({
+    timestamp: 10,
+    data: {
+      task: { ids: ['phone'], entities: { phone: { id: 'phone' } } },
+    },
+  });
+
+  global.fetch = async (url, init = {}) => {
+    const href = String(url);
+    const method = init.method || 'GET';
+    if (href.includes('pathname=sp-tasks-backup.json') && method === 'PUT') {
+      puts += 1;
+      const ifMatch = init.headers && init.headers['x-if-match'];
+      if (puts === 1) {
+        assert.equal(ifMatch, '"v1"');
+        etag = '"v2"';
+        stored = JSON.stringify({
+          timestamp: 70,
+          data: {
+            task: { ids: ['other'], entities: { other: { id: 'other' } } },
+          },
+        });
+        return { ok: false, status: 412, text: async () => 'precondition failed' };
+      }
+      assert.equal(ifMatch, '"v2"');
+      stored = init.body;
+      etag = '"v3"';
+      return { ok: true, status: 200, text: async () => '{}' };
+    }
+    if (href.includes('prefix=sp-tasks-backup.json')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            blobs: [
+              {
+                pathname: 'sp-tasks-backup.json',
+                url: 'https://store.private.blob.vercel-storage.com/sp-tasks-backup.json',
+                etag,
+              },
+            ],
+          }),
+      };
+    }
+    if (href.includes('store.private.blob.vercel-storage.com')) {
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (name) => (name.toLowerCase() === 'etag' ? etag : null) },
+        text: async () => stored,
+      };
+    }
+    return { ok: false, status: 500, text: async () => 'unexpected' };
+  };
+
+  try {
+    const res = mockRes();
+    await invoke(
+      handler,
+      mockReq('PUT', '/api/backup', {
+        headers: { 'x-sp-base-timestamp': '0' },
+        body: incoming,
+      }),
+      res,
+    );
+    assert.equal(res.statusCode, 409);
+    const conflict = JSON.parse(res.body);
+    assert.deepEqual(conflict.backup.data.task.ids.sort(), ['other', 'phone']);
+    assert.equal(puts, 2);
+  } finally {
+    global.fetch = originalFetch;
+    restore();
+  }
+});
+
 test('GET returns 404 when no backup exists yet', async () => {
   const { handler, restore } = loadHandler({
     BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_store_token',
@@ -581,11 +669,7 @@ test('GET returns 404 when no backup exists yet', async () => {
 
   try {
     const res = mockRes();
-    await invoke(
-      handler,
-      mockReq('GET', '/api/backup'),
-      res,
-    );
+    await invoke(handler, mockReq('GET', '/api/backup'), res);
     assert.equal(res.statusCode, 404);
   } finally {
     global.fetch = originalFetch;

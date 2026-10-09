@@ -346,60 +346,109 @@ function mergeBackupTexts(existingText, incomingText) {
   };
 }
 
-async function rejectIfCloudIsNewer(req, res, body) {
+function readBaseTimestamp(req) {
   const raw = req.headers['x-sp-base-timestamp'];
   const header = Array.isArray(raw) ? raw[0] : raw;
   if (header === undefined || header === '') {
-    return false;
+    return { kind: 'missing' };
   }
   const base = Number(header);
   if (!Number.isFinite(base)) {
-    json(res, 400, { error: 'Invalid base timestamp' });
-    return true;
+    return { kind: 'invalid' };
   }
-  const existing = await getBackup();
-  if (!existing) {
-    return false;
-  }
-  // A placeholder file (timestamp > 0, no tasks) must not 409 every device
-  // that has never synced. Those browsers send base 0.
-  if (!backupHasUserData(existing)) {
-    return false;
-  }
-  const current = backupTimestamp(existing);
-  if (current > base) {
-    if (backupHasUserData(body)) {
-      const merged = mergeBackupTexts(existing, body);
-      await putBackup(JSON.stringify(merged));
-      json(res, 409, { error: 'Cloud backup is newer', timestamp: merged.timestamp });
-      return true;
-    }
-    json(res, 409, { error: 'Cloud backup is newer', timestamp: current });
-    return true;
-  }
-  return false;
+  return { kind: 'base', base };
 }
 
-async function putBackup(body) {
+/**
+ * A client that has not downloaded the current cloud file must not replace it.
+ * Merge both task lists and return that document so the browser can adopt it
+ * without a second download (a follow-up GET can still see the previous file).
+ */
+function decideBackupWrite(existingText, incomingText, base) {
+  const savedAt = Date.now();
+  if (!existingText || !backupHasUserData(existingText) || base === null) {
+    return {
+      write: true,
+      status: 200,
+      bodyText: incomingText,
+      response: { ok: true, savedAt },
+    };
+  }
+  const current = backupTimestamp(existingText);
+  if (current > base) {
+    if (backupHasUserData(incomingText)) {
+      const merged = mergeBackupTexts(existingText, incomingText);
+      return {
+        write: true,
+        status: 409,
+        bodyText: JSON.stringify(merged),
+        response: {
+          error: 'Cloud backup is newer',
+          timestamp: merged.timestamp,
+          backup: merged,
+        },
+      };
+    }
+    return {
+      write: false,
+      status: 409,
+      bodyText: existingText,
+      response: {
+        error: 'Cloud backup is newer',
+        timestamp: current,
+        backup: JSON.parse(existingText),
+      },
+    };
+  }
+  return {
+    write: true,
+    status: 200,
+    bodyText: incomingText,
+    response: { ok: true, savedAt },
+  };
+}
+
+async function putBackup(body, etag) {
   const url = `${BLOB_API}/?${new URLSearchParams({ pathname: BLOB_PATH })}`;
+  const headers = {
+    'x-vercel-blob-access': 'private',
+    'x-add-random-suffix': '0',
+    'x-allow-overwrite': '1',
+    'x-content-type': 'application/json',
+  };
+  if (etag) {
+    headers['x-if-match'] = etag;
+  }
   const response = await fetch(url, {
     method: 'PUT',
-    headers: blobHeaders({
-      'x-vercel-blob-access': 'private',
-      'x-add-random-suffix': '0',
-      'x-allow-overwrite': '1',
-      'x-content-type': 'application/json',
-    }),
+    headers: blobHeaders(headers),
     body,
   });
   const text = await response.text();
+  if (response.status === 412) {
+    return { ok: false, conflict: true };
+  }
+  // Older Blob API versions reject the conditional header. Save without it.
+  if (response.status === 400 && etag) {
+    return putBackup(body);
+  }
   if (!response.ok) {
     throw new Error(`Blob upload failed (${response.status}): ${text.slice(0, 300)}`);
   }
-  return text ? JSON.parse(text) : {};
+  return { ok: true, conflict: false };
 }
 
-async function getBackup() {
+function etagFrom(headers, fallback) {
+  if (headers && typeof headers.get === 'function') {
+    const value = headers.get('etag') || headers.get('ETag');
+    if (value) {
+      return value;
+    }
+  }
+  return typeof fallback === 'string' && fallback ? fallback : '';
+}
+
+async function readBackup() {
   const listUrl = `${BLOB_API}?${new URLSearchParams({
     prefix: BLOB_PATH,
     limit: '10',
@@ -437,7 +486,32 @@ async function getBackup() {
   if (!fileRes.ok) {
     throw new Error(`Blob download failed (${fileRes.status}): ${text.slice(0, 300)}`);
   }
-  return text;
+  return { text, etag: etagFrom(fileRes.headers, match.etag) };
+}
+
+async function getBackup() {
+  const record = await readBackup();
+  return record ? record.text : null;
+}
+
+async function commitIncoming(incomingText, base) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const record = await readBackup();
+    const decision = decideBackupWrite(record ? record.text : null, incomingText, base);
+    if (!decision.write) {
+      return decision;
+    }
+    const wrote = await putBackup(decision.bodyText, record && record.etag);
+    if (wrote.ok || !record || !record.etag) {
+      return decision;
+    }
+  }
+  const record = await readBackup();
+  const decision = decideBackupWrite(record ? record.text : null, incomingText, base);
+  if (decision.write) {
+    await putBackup(decision.bodyText);
+  }
+  return decision;
 }
 
 async function handler(req, res) {
@@ -481,11 +555,16 @@ async function handler(req, res) {
         return;
       }
       JSON.parse(body);
-      if (await rejectIfCloudIsNewer(req, res, body)) {
+      const baseHeader = readBaseTimestamp(req);
+      if (baseHeader.kind === 'invalid') {
+        json(res, 400, { error: 'Invalid base timestamp' });
         return;
       }
-      await putBackup(body);
-      json(res, 200, { ok: true, savedAt: Date.now() });
+      const decision = await commitIncoming(
+        body,
+        baseHeader.kind === 'base' ? baseHeader.base : null,
+      );
+      json(res, decision.status, decision.response);
       return;
     }
 
@@ -500,3 +579,4 @@ module.exports.putBackup = putBackup;
 module.exports.getBackup = getBackup;
 module.exports.backupHasUserData = backupHasUserData;
 module.exports.mergeBackupTexts = mergeBackupTexts;
+module.exports.decideBackupWrite = decideBackupWrite;
